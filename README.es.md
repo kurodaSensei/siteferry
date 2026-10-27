@@ -8,6 +8,17 @@ Siteferry es un plugin de migración para WordPress. Exporta e importa la base d
 
 Se usa desde **Herramientas → Siteferry** en el admin y desde WP-CLI (`wp siteferry`). Está escrito en PHP 8.1 puro, sin dependencias en tiempo de ejecución.
 
+![Herramientas → Siteferry: elegir la operación, los reemplazos y las tablas](.wordpress-org/screenshot-1.png)
+
+<details>
+<summary>Más capturas</summary>
+
+![Una exportación terminada, con su descarga y el registro](.wordpress-org/screenshot-2.png)
+
+![La información de conexión de este sitio y los permisos que reciben otros sitios](.wordpress-org/screenshot-3.png)
+
+</details>
+
 ## Funciones
 
 - **Buscar/reemplazar seguro con datos serializados.** El PHP serializado se recorre como texto y se recalcula el largo de cada cadena. Nunca se deserializa, así que no se instancia ningún objeto, y las clases desconocidas, los floats y las referencias quedan tal cual. También se reemplaza dentro de valores JSON, incluidas las barras escapadas. Las expresiones regulares (PCRE) y la distinción de mayúsculas son opcionales.
@@ -33,6 +44,8 @@ Se usa desde **Herramientas → Siteferry** en el admin y desde WP-CLI (`wp site
    ```nginx
    location ~* /uploads/siteferry- { deny all; }
    ```
+
+Al desactivar Siteferry se quitan su mu-plugin y la limpieza diaria. Al borrarlo desde **Plugins** se eliminan además sus opciones, las tablas temporales que queden y su carpeta de trabajo, con los dumps, los backups y los puntos de deshacer.
 
 ## Uso
 
@@ -163,6 +176,7 @@ wp i18n make-json languages/siteferry-es_ES.po languages --no-purge
 
 ```text
 siteferry.php        Cabecera del plugin y autoloader
+uninstall.php        Borra opciones, tablas temporales y la carpeta de trabajo al eliminar el plugin
 src/Engine/          Buscar/reemplazar, lectura y escritura de SQL, copia y cambio de tablas (sin depender de WordPress)
 src/Files/           Escaneo de archivos, diferencias, paquetes y protección de rutas
 src/Job/             Planificador, ejecutor de pasos y almacenamiento de operaciones

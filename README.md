@@ -8,6 +8,17 @@ Siteferry is a WordPress migration plugin. It exports, imports and runs search-r
 
 It works from **Tools → Siteferry** in the admin and from WP-CLI (`wp siteferry`). It is pure PHP 8.1 and has no runtime dependencies.
 
+![Tools → Siteferry: choose an operation, the replacements and the tables](.wordpress-org/screenshot-1.png)
+
+<details>
+<summary>More screenshots</summary>
+
+![A finished export with its download and log](.wordpress-org/screenshot-2.png)
+
+![This site's connection info and the permissions other sites get](.wordpress-org/screenshot-3.png)
+
+</details>
+
 ## Features
 
 - **Serialized-safe search-replace.** Serialized PHP is processed as text and every string length is recalculated. Nothing is ever unserialized, so no objects are instantiated, and unknown classes, floats and references come out exactly as they went in. JSON values, including escaped slashes, are replaced as well. Regular expressions (PCRE) and case-sensitive matching are optional.
@@ -33,6 +44,8 @@ It works from **Tools → Siteferry** in the admin and from WP-CLI (`wp siteferr
    ```nginx
    location ~* /uploads/siteferry- { deny all; }
    ```
+
+Deactivating Siteferry removes its mu-plugin and the daily cleanup. Deleting it from **Plugins** also removes its options, any temporary tables and its working folder, including dumps, backups and undo points.
 
 ## Usage
 
@@ -163,6 +176,7 @@ wp i18n make-json languages/siteferry-es_ES.po languages --no-purge
 
 ```text
 siteferry.php        Plugin header and autoloader
+uninstall.php        Removes options, temporary tables and the working folder when the plugin is deleted
 src/Engine/          Search-replace, SQL reading/writing, table copy and swap (no WordPress dependency)
 src/Files/           File scanning, diffs, packages and path guards
 src/Job/             Job planner, step runner and storage

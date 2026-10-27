@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <ruleset name="Siteferry">
 	<file>siteferry.php</file>
+	<file>uninstall.php</file>
 	<file>src</file>
 	<file>mu-plugin</file>
 	<arg name="extensions" value="php"/>

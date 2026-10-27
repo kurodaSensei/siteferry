@@ -4,7 +4,7 @@ Tags: migration, search replace, database, backup, wp-cli
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,10 @@ Your live tables are only replaced in the final step. Before that, the work happ
 
 Yes. Use the **Undo** card in **Tools → Siteferry** or run `wp siteferry undo`. It reverts the last operation that changed the site, as long as its backup is still there (7 days).
 
+= What does deleting the plugin remove? =
+
+Deleting Siteferry from **Plugins** removes its settings and connection key, any temporary tables, and its working folder with dumps, backups and undo points. Deactivating it only removes the must-use plugin and the daily cleanup.
+
 = Does it support multisite? =
 
 Not yet.
@@ -77,7 +81,19 @@ Not yet.
 
 The admin interface is translatable and ships with a Spanish (es_ES) translation. Progress logs and WP-CLI output are in English.
 
+== Screenshots ==
+
+1. Tools → Siteferry: choose an operation, the replacements and the tables.
+2. A finished export with its download link and log.
+3. This site's connection info and the permissions other sites get.
+
 == Changelog ==
+
+= 0.5.0 =
+* New: Spanish (es_ES) translation. The admin interface is translatable.
+* New: deleting the plugin removes its options, temporary tables and working folder.
+* Fix: repeating an import step after a cut-off request no longer fails with "Duplicate entry". The load resumes where it stopped.
+* Fix: repeated copy, pull, export, backup and finalize steps no longer duplicate rows or dump statements, and no longer fail after the tables were swapped.
 
 = 0.4.0 =
 * First public release.

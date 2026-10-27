@@ -11,6 +11,7 @@ use Siteferry\Admin\Page;
 use Siteferry\Cli\Command;
 use Siteferry\Engine\Budget;
 use Siteferry\Engine\Schema;
+use Siteferry\Files\Applier;
 use Siteferry\Http\RemoteController;
 use Siteferry\Http\RestController;
 use Siteferry\Job\JobStore;
@@ -57,6 +58,26 @@ final class Plugin {
 		if ( ! wp_next_scheduled( 'siteferry_cleanup' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'siteferry_cleanup' );
 		}
+	}
+
+	/**
+	 * Uninstall: the mu-plugin, the cron event, temporary tables, the working folder (dumps,
+	 * backups and undo points) and every siteferry_* option.
+	 */
+	public static function uninstall(): void {
+		global $wpdb;
+		self::deactivate();
+		// Only a key in the format Storage creates: an empty or altered option must never point at uploads itself.
+		$key = (string) get_option( 'siteferry_storage_key' );
+		if ( preg_match( '/^[a-z0-9]{24}$/', $key ) ) {
+			Applier::remove_tree( wp_upload_dir( null, false )['basedir'] . '/siteferry-' . $key );
+		}
+		$db = self::db();
+		foreach ( ( new Schema( $db ) )->temp_tables() as $table ) {
+			$db->query( 'DROP TABLE IF EXISTS ' . Db::ident( $table ) );
+		}
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'siteferry_' ) . '%' ) );
+		wp_cache_flush();
 	}
 
 	/**

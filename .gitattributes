@@ -8,3 +8,5 @@
 /.gitattributes export-ignore
 /README.es.md export-ignore
 /.github export-ignore
+/CHANGELOG.md export-ignore
+/.wordpress-org export-ignore
