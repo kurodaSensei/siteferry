@@ -45,16 +45,18 @@ final class TableCopier {
 	/**
 	 * Copies a chunk of $source into $target.
 	 *
-	 * @param string     $source    Source table.
-	 * @param string     $target    Destination table (name used in the SQL).
-	 * @param string     $logical   Table name on the source site (without temporary prefix).
-	 * @param Sink       $sink      Destination for the statements.
-	 * @param array|null $cursor    Null to start: emits DROP + CREATE.
-	 * @param Budget     $budget    Available time.
-	 * @param bool       $defer_fks Remove the foreign keys from the CREATE and return them.
+	 * @param string        $source    Source table.
+	 * @param string        $target    Destination table (name used in the SQL).
+	 * @param string        $logical   Table name on the source site (without temporary prefix).
+	 * @param Sink          $sink      Destination for the statements.
+	 * @param array|null    $cursor    Null to start: emits DROP + CREATE.
+	 * @param Budget        $budget    Available time.
+	 * @param bool          $defer_fks Remove the foreign keys from the CREATE and return them.
+	 * @param \Closure|null $on_write Called after each INSERT with the cursor and the row count
+	 *                               (in this call) that the INSERTs written so far cover.
 	 * @return array{cursor: ?array, rows: int, fks: list<string>} cursor null = table finished.
 	 */
-	public function run( string $source, string $target, string $logical, Sink $sink, ?array $cursor, Budget $budget, bool $defer_fks ): array {
+	public function run( string $source, string $target, string $logical, Sink $sink, ?array $cursor, Budget $budget, bool $defer_fks, ?\Closure $on_write = null ): array {
 		$columns = $this->schema->columns( $source );
 		$private = $logical === $this->options_table;
 		$pk      = $this->schema->primary_key( $source );
@@ -71,10 +73,21 @@ final class TableCopier {
 			);
 		}
 
-		$writer = new SqlWriter( $sink, $target, array_column( $columns, 'name' ), $this->max_bytes );
-		$page   = $this->page_size( $source );
-		$rows   = 0;
-		$done   = false;
+		// What the rows already handed to the writer cover; a flush writes exactly those rows.
+		$covered      = $cursor;
+		$covered_rows = 0;
+		$writer       = new SqlWriter(
+			$sink,
+			$target,
+			array_column( $columns, 'name' ),
+			$this->max_bytes,
+			$on_write ? static function () use ( &$covered, &$covered_rows, $on_write ): void {
+				$on_write( $covered, $covered_rows );
+			} : null
+		);
+		$page         = $this->page_size( $source );
+		$rows         = 0;
+		$done         = false;
 
 		do {
 			$result = $this->db->query( $this->select( $source, $columns, $pk, $cursor, $page ) );
@@ -83,6 +96,8 @@ final class TableCopier {
 			while ( $row = $result->fetch_assoc() ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
 				++$read;
 				if ( ! $private || ! str_starts_with( (string) $row['option_name'], 'siteferry_' ) ) {
+					$covered      = $cursor;
+					$covered_rows = $rows;
 					++$rows;
 					$budget->spend( $writer->add( $this->format_row( $logical, $row, $kinds ) ) );
 				}
@@ -102,6 +117,8 @@ final class TableCopier {
 			}
 		} while ( ! $done && ! $budget->exhausted() );
 
+		$covered      = $cursor;
+		$covered_rows = $rows;
 		$writer->flush();
 
 		return array(

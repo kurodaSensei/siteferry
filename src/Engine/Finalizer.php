@@ -23,7 +23,9 @@ final class Finalizer {
 	public function __construct( private Db $db, private Schema $schema ) {}
 
 	/**
-	 * Runs the swap.
+	 * Runs the swap. Running it again (a request cut off after the swap but before the job was
+	 * saved) does nothing twice: tables already swapped, leftover old tables and existing
+	 * foreign keys are recognized.
 	 *
 	 * @param array<string, string>                      $swap          Temporary table => final table.
 	 * @param list<array{table: string, clause: string}> $fks           Deferred foreign keys (final table + clause).
@@ -35,17 +37,20 @@ final class Finalizer {
 	 */
 	public function run( array $swap, array $fks, array $ref_map, string $options_table, array $preserve, string $plugin ): array {
 		$tmp_options = array_search( $options_table, $swap, true );
-		if ( false !== $tmp_options && $this->schema->exists( $options_table ) ) {
+		if ( false !== $tmp_options && $this->schema->exists( (string) $tmp_options ) && $this->schema->exists( $options_table ) ) {
 			$this->preserve_options( $options_table, (string) $tmp_options, $preserve, $plugin );
 		}
 
 		$renames = array();
 		$old     = array();
 		foreach ( $swap as $tmp => $final ) {
+			$old[] = Db::ident( Schema::OLD . $final );
+			if ( ! $this->schema->exists( $tmp ) ) {
+				continue; // Already swapped.
+			}
 			if ( $this->schema->exists( $final ) ) {
 				$this->db->query( 'DROP TABLE IF EXISTS ' . Db::ident( Schema::OLD . $final ) );
 				$renames[] = Db::ident( $final ) . ' TO ' . Db::ident( Schema::OLD . $final );
-				$old[]     = Db::ident( Schema::OLD . $final );
 			}
 			$renames[] = Db::ident( $tmp ) . ' TO ' . Db::ident( $final );
 		}
@@ -66,6 +71,9 @@ final class Finalizer {
 				static fn( $m ) => 'REFERENCES ' . Db::ident( $ref_map[ str_replace( '``', '`', $m[1] ) ] ?? str_replace( '``', '`', $m[1] ) ),
 				$fk['clause']
 			);
+			if ( preg_match( '/^CONSTRAINT\s+`((?:[^`]|``)+)`/i', (string) $clause, $name ) && $this->has_constraint( $fk['table'], str_replace( '``', '`', $name[1] ) ) ) {
+				continue; // Added by an earlier run.
+			}
 			try {
 				$this->db->query( 'ALTER TABLE ' . Db::ident( $fk['table'] ) . ' ADD ' . $clause );
 			} catch ( \RuntimeException $e ) {
@@ -73,6 +81,19 @@ final class Finalizer {
 			}
 		}
 		return $warnings;
+	}
+
+	/**
+	 * Whether a table already has a constraint with this name.
+	 *
+	 * @param string $table Table.
+	 * @param string $name  Constraint name.
+	 */
+	private function has_constraint( string $table, string $name ): bool {
+		return null !== $this->db->value(
+			'SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = '
+			. $this->db->quote( $table ) . ' AND CONSTRAINT_NAME = ' . $this->db->quote( $name )
+		);
 	}
 
 	/**

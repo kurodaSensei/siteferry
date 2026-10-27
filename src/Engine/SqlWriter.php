@@ -39,12 +39,13 @@ final class SqlWriter {
 	/**
 	 * Constructor.
 	 *
-	 * @param Sink         $sink      Destination.
-	 * @param string       $table     Destination table.
-	 * @param list<string> $columns   Column names.
-	 * @param int          $max_bytes Maximum size of a statement.
+	 * @param Sink          $sink        Destination.
+	 * @param string        $table       Destination table.
+	 * @param list<string>  $columns     Column names.
+	 * @param int           $max_bytes   Maximum size of a statement.
+	 * @param \Closure|null $after_write Called after each statement is written.
 	 */
-	public function __construct( private Sink $sink, string $table, array $columns, private int $max_bytes ) {
+	public function __construct( private Sink $sink, string $table, array $columns, private int $max_bytes, private ?\Closure $after_write = null ) {
 		$this->head = 'INSERT INTO ' . Db::ident( $table ) . ' (' . implode( ',', array_map( array( Db::class, 'ident' ), $columns ) ) . ') VALUES ';
 	}
 
@@ -72,6 +73,9 @@ final class SqlWriter {
 			$this->sink->write( $this->head . implode( ',', $this->tuples ) );
 			$this->tuples = array();
 			$this->size   = 0;
+			if ( $this->after_write ) {
+				( $this->after_write )();
+			}
 		}
 	}
 }

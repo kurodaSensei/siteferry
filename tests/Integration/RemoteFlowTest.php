@@ -88,9 +88,16 @@ final class RemoteFlowTest extends DbTestCase {
 		};
 	}
 
-	private function run_job( Db $db, array $job, \Closure $client ): array {
+	/**
+	 * Runs the job to the end. With $repeat, every step first runs once from the same saved state
+	 * and that result is thrown away (a request cut off before the job was saved, then repeated).
+	 */
+	private function run_job( Db $db, array $job, \Closure $client, bool $repeat = false ): array {
 		$runner = new Runner( $db, $client );
 		for ( $i = 0; $i < 5000 && Runner::is_open( $job ); $i++ ) {
+			if ( $repeat ) {
+				$runner->step( $job, new Budget( 0 ) );
+			}
 			$job = $runner->step( $job, new Budget( 0 ) );
 		}
 		$this->assertSame( 'done', $job['status'], (string) $job['error'] . "\n" . implode( "\n", $job['log'] ) );
@@ -263,6 +270,28 @@ final class RemoteFlowTest extends DbTestCase {
 		$this->assertFileExists( $job['files']['backup'] );
 		$this->assertArrayNotHasKey( 'key', $job['remote'], 'the other site\'s key is not stored' );
 		$this->assertSame( self::OLD, $this->option( $remote, 'wpa_options', 'home' ), 'the remote does not change' );
+	}
+
+	public function test_pull_with_repeated_steps_brings_the_same_site(): void {
+		$remote = $this->seeded( 'wpa_', self::OLD );
+		// About 6 MB without a primary key: it arrives in several batches, and a repeated batch would duplicate rows.
+		$remote->query( 'CREATE TABLE wpa_big (txt longtext NOT NULL) ENGINE=InnoDB' );
+		for ( $i = 0; $i < 12; $i++ ) {
+			$remote->query( "INSERT INTO wpa_big VALUES (REPEAT('$i', 524288))" );
+		}
+		$local  = $this->site_b();
+		$server = $this->server( $remote, 'wpa_', self::OLD, array( 'allow_pull' => true ) );
+
+		$job = Planner::create( 'pull', $this->remote_input( $server ), $this->site( 'wpb_', self::NEW ), new Schema( $local ) );
+		$this->run_job( $local, $job, $this->client( $server ), true );
+
+		$this->assertSame( '12', $local->value( 'SELECT COUNT(*) FROM wpb_big' ) );
+		$this->assertSame( $this->checksum( $remote, 'wpa_big' ), $this->checksum( $local, 'wpb_big' ) );
+
+		$this->assert_b_has_site_a( $local );
+		foreach ( array( 'options', 'posts', 'usermeta', 'parent', 'child' ) as $table ) {
+			$this->assertSame( $remote->value( "SELECT COUNT(*) FROM wpa_$table" ), $local->value( "SELECT COUNT(*) FROM wpb_$table" ) . '', $table );
+		}
 	}
 
 	public function test_push_sends_this_site_to_the_remote_even_with_retries(): void {

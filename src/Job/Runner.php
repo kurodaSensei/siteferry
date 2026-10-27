@@ -71,8 +71,9 @@ final class Runner {
 						}
 						if ( $this->run_step( $job, $job['steps'][ $job['index'] ], $budget ) ) {
 							++$job['index'];
-							$job['cursor']    = null;
-							$job['step_rows'] = 0;
+							$job['cursor']      = null;
+							$job['step_rows']   = 0;
+							$job['step_writes'] = 0;
 						}
 						if ( $budget->exhausted() ) {
 							break;
@@ -83,6 +84,7 @@ final class Runner {
 			if ( ! isset( $job['steps'][ $job['index'] ] ) ) {
 				$job['status'] = 'done';
 				unset( $job['remote']['key'] ); // The other site's key is not kept longer than necessary.
+				self::forget_progress( $job );
 				self::log( $job, 'Done.' );
 			}
 		} catch ( \Throwable $e ) {
@@ -118,6 +120,7 @@ final class Runner {
 		}
 		$job['status'] = 'cancelled';
 		unset( $job['remote']['key'] );
+		self::forget_progress( $job );
 		self::log( $job, 'Cancelled.' );
 		return $job;
 	}
@@ -182,12 +185,14 @@ final class Runner {
 				return true;
 
 			case 'header':
+				self::rewind( $job['files'][ $step['file'] ], $job['file_sizes'][ $job['files'][ $step['file'] ] ] ?? 0 );
 				$sink = new FileSink( $job['files'][ $step['file'] ] );
 				$sink->comment( 'Siteferry — ' . $job['site']['home'] . ' — ' . gmdate( 'c' ) );
 				$sink->write( 'SET NAMES utf8mb4' );
 				$sink->write( "SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO'" );
 				$sink->write( 'SET foreign_key_checks = 0' );
 				$sink->close();
+				$job['file_sizes'][ $job['files'][ $step['file'] ] ] = self::size( $job['files'][ $step['file'] ] );
 				return true;
 
 			case 'copy':
@@ -271,12 +276,14 @@ final class Runner {
 				return true;
 
 			case 'footer':
+				self::rewind( $job['files'][ $step['file'] ], $job['file_sizes'][ $job['files'][ $step['file'] ] ] ?? 0 );
 				$sink = new FileSink( $job['files'][ $step['file'] ] );
 				foreach ( $job['file_fks'][ $step['file'] ] ?? array() as $fk ) {
 					$sink->write( 'ALTER TABLE ' . Db::ident( $fk['table'] ) . ' ADD ' . $fk['clause'] );
 				}
 				$sink->write( 'SET foreign_key_checks = 1' );
 				$sink->close();
+				$job['file_sizes'][ $job['files'][ $step['file'] ] ] = self::size( $job['files'][ $step['file'] ] );
 				self::log( $job, basename( $job['files'][ $step['file'] ] ) . ': ' . self::megabytes( $job['files'][ $step['file'] ] ) );
 				return true;
 
@@ -285,14 +292,31 @@ final class Runner {
 				return true;
 
 			case 'import':
-				$this->resume_import( $job );
+				$progress = self::read_progress( $job );
+				if ( $progress ) {
+					$job['cursor']            = array( 'offset' => $progress['offset'] );
+					$job['import']['tables']  = $progress['tables'];
+					$job['import']['skipped'] = $progress['skipped'];
+					$job['fks']               = $progress['fks'];
+					$job['step_writes']       = $progress['writes'];
+				}
 				$result                    = SqlFileReader::read(
 					$job['files']['import_sql'] ?? $job['files']['import'],
 					(int) ( $job['cursor']['offset'] ?? 0 ),
 					$budget,
 					function ( string $sql, int $offset, int $skipped ) use ( &$job ) {
 						$this->import_statement( $job, $sql );
-						$this->record_import_progress( $job, $offset, $skipped );
+						$job['step_writes'] = ( $job['step_writes'] ?? 0 ) + 1;
+						self::write_progress(
+							$job,
+							array(
+								'writes'  => $job['step_writes'],
+								'offset'  => $offset,
+								'tables'  => $job['import']['tables'],
+								'skipped' => $job['import']['skipped'] + $skipped,
+								'fks'     => $job['fks'],
+							)
+						);
 					}
 				);
 				$job['cursor']             = array( 'offset' => $result['offset'] );
@@ -332,7 +356,7 @@ final class Runner {
 						$this->db->query( 'DROP TABLE IF EXISTS ' . Db::ident( Schema::RAW . $name ) );
 					}
 				}
-				foreach ( array( 'import', 'import_sql', 'import_gz', 'import_progress', 'dump' ) as $key ) {
+				foreach ( array( 'import', 'import_sql', 'import_gz', 'dump' ) as $key ) {
 					if ( in_array( $key, $job['owned'], true ) && isset( $job['files'][ $key ] ) ) {
 						self::delete( $job['files'][ $key ] );
 					}
@@ -343,53 +367,59 @@ final class Runner {
 	}
 
 	/**
-	 * Picks up the progress of a request that was cut off after running import statements but
-	 * before the job was saved. Those statements are already in the raw tables, so running them
-	 * again would fail with "Duplicate entry" (or silently duplicate rows in a table without a
-	 * primary key). The load continues right after the last statement that was recorded.
+	 * Progress that a request recorded in the current step before it was cut off, without the job
+	 * being saved. Its writes are already in the database, so running them again would fail with
+	 * "Duplicate entry" or silently duplicate rows in a table without a primary key: the step
+	 * continues from this record instead. Null if there is none or the saved job is not behind it.
 	 *
 	 * @param array $job Job.
 	 */
-	private function resume_import( array &$job ): void {
-		$job['files']['import_progress'] ??= $job['site']['storage'] . '/import-' . $job['id'] . '.sql.progress';
-		if ( ! in_array( 'import_progress', $job['owned'], true ) ) {
-			$job['owned'][] = 'import_progress';
-		}
-		$file     = $job['files']['import_progress'];
+	private static function read_progress( array &$job ): ?array {
+		$file     = self::progress_file( $job );
 		$progress = is_file( $file ) ? unserialize( (string) file_get_contents( $file ), array( 'allowed_classes' => false ) ) : null; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Our own file, no classes allowed.
-		if ( is_array( $progress ) && $progress['offset'] > (int) ( $job['cursor']['offset'] ?? 0 ) ) {
-			$job['cursor']            = array( 'offset' => $progress['offset'] );
-			$job['import']['tables']  = $progress['tables'];
-			$job['import']['skipped'] = $progress['skipped'];
-			$job['fks']               = $progress['fks'];
-			self::log( $job, 'A previous request was cut off while loading; continuing where it stopped.' );
+		if ( ! is_array( $progress ) || $progress['writes'] <= ( $job['step_writes'] ?? 0 ) ) {
+			return null;
+		}
+		self::log( $job, 'A previous request was cut off during this step; continuing where it stopped.' );
+		return $progress;
+	}
+
+	/**
+	 * Records the step's progress right after a write. The file is replaced atomically, so a
+	 * request cut off mid-write leaves the previous record.
+	 *
+	 * @param array $job      Job.
+	 * @param array $progress Progress, with "writes" counting the step's writes so far.
+	 *
+	 * @throws \RuntimeException If it cannot be written.
+	 */
+	private static function write_progress( array $job, array $progress ): void {
+		// ponytail: a cut between a write and this record still repeats that one write; closing it needs the record in the same transaction.
+		$file = self::progress_file( $job );
+		$data = serialize( $progress ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Read back only by read_progress(), without classes.
+		if ( false === file_put_contents( $file . '.tmp', $data ) || ! rename( $file . '.tmp', $file ) ) {
+			throw new \RuntimeException( 'Cannot write ' . $file );
 		}
 	}
 
 	/**
-	 * Records the load progress after a statement, so a repeated request can resume from it.
-	 * The file is replaced atomically: a request cut off mid-write leaves the previous record.
+	 * Deletes the job's progress records.
 	 *
-	 * @param array $job     Job.
-	 * @param int   $offset  Offset right after the statement.
-	 * @param int   $skipped Statements the reader skipped so far in this call.
-	 *
-	 * @throws \RuntimeException If it cannot be written.
+	 * @param array $job Job.
 	 */
-	private function record_import_progress( array $job, int $offset, int $skipped ): void {
-		// ponytail: a cut between a statement and this write still repeats that one statement; closing it needs the progress in the same transaction as the INSERT.
-		$file = $job['files']['import_progress'];
-		$data = serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Read back only by resume_import(), without classes.
-			array(
-				'offset'  => $offset,
-				'tables'  => $job['import']['tables'],
-				'skipped' => $job['import']['skipped'] + $skipped,
-				'fks'     => $job['fks'],
-			)
-		);
-		if ( false === file_put_contents( $file . '.tmp', $data ) || ! rename( $file . '.tmp', $file ) ) {
-			throw new \RuntimeException( 'Cannot write ' . $file );
+	private static function forget_progress( array $job ): void {
+		foreach ( (array) glob( $job['site']['storage'] . '/' . $job['id'] . '-step*.sql.progress*' ) as $file ) {
+			self::delete( $file );
 		}
+	}
+
+	/**
+	 * Progress record of the current step.
+	 *
+	 * @param array $job Job.
+	 */
+	private static function progress_file( array $job ): string {
+		return $job['site']['storage'] . '/' . $job['id'] . '-step' . $job['index'] . '.sql.progress';
 	}
 
 	/**
@@ -406,9 +436,15 @@ final class Runner {
 			$replacer = new Replacer( $o['pairs'], $o['case_sensitive'], $o['regex'] );
 			$replacer = $replacer->is_empty() ? null : $replacer;
 		}
-		$to_file = 'file' === $step['sink'];
-		$push    = 'remote' === $step['sink'];
-		$sink    = match ( $step['sink'] ) {
+		$to_file  = 'file' === $step['sink'];
+		$push     = 'remote' === $step['sink'];
+		$on_write = null;
+		if ( $to_file ) {
+			self::rewind( $job['files'][ $step['file'] ], $job['file_sizes'][ $job['files'][ $step['file'] ] ] ?? 0 );
+		} elseif ( ! $push ) {
+			$on_write = $this->resume_copy( $job, $step );
+		}
+		$sink = match ( $step['sink'] ) {
 			'file'   => new FileSink( $job['files'][ $step['file'] ] ),
 			'remote' => new MemorySink(),
 			default  => new TableSink( $this->db ),
@@ -425,9 +461,10 @@ final class Runner {
 			$step['options_table'] ?? $job['site']['options_table']
 		);
 
-		$result = $copier->run( $step['source'], $step['target'], $step['logical'], $sink, $job['cursor'], $push ? $budget->limited( $job['remote']['chunk'] ) : $budget, true );
+		$result = $copier->run( $step['source'], $step['target'], $step['logical'], $sink, $job['cursor'], $push ? $budget->limited( $job['remote']['chunk'] ) : $budget, true, $on_write );
 		if ( $to_file ) {
 			$sink->close();
+			$job['file_sizes'][ $job['files'][ $step['file'] ] ] = self::size( $job['files'][ $step['file'] ] );
 		}
 		if ( $push && $sink->statements ) {
 			// The cursor only advances if the other site confirmed the chunk; chunks are numbered.
@@ -464,6 +501,45 @@ final class Runner {
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Copy into a table: continues from a cut-off request's progress, and returns the callback
+	 * that records progress after each INSERT.
+	 *
+	 * @param array $job  Job.
+	 * @param array $step Copy step.
+	 */
+	private function resume_copy( array &$job, array $step ): \Closure {
+		$progress = self::read_progress( $job );
+		if ( $progress ) {
+			if ( null === $job['cursor'] ) {
+				// The cut-off request created the table: its deferred foreign keys never reached the saved job.
+				foreach ( $this->schema->create_sql( $step['source'], $step['target'], true )[1] as $clause ) {
+					$job['fks'][] = array(
+						'table'  => $step['final'],
+						'clause' => $clause,
+					);
+				}
+			}
+			$job['cursor']      = $progress['cursor'];
+			$job['step_rows']   = $progress['step_rows'];
+			$job['rows']        = $progress['rows'];
+			$job['step_writes'] = $progress['writes'];
+		}
+		$saved = $job;
+		return static function ( array $cursor, int $rows ) use ( &$job, $saved ): void {
+			$job['step_writes'] = ( $job['step_writes'] ?? 0 ) + 1;
+			self::write_progress(
+				$saved,
+				array(
+					'writes'    => $job['step_writes'],
+					'cursor'    => $cursor,
+					'step_rows' => $saved['step_rows'] + $rows,
+					'rows'      => $saved['rows'] + $rows,
+				)
+			);
+		};
 	}
 
 	/**
@@ -779,8 +855,20 @@ final class Runner {
 	 * @throws \RuntimeException If the remote returns something that does not belong to that table.
 	 */
 	private function pull_copy( array &$job, array $step ): bool {
-		$o      = $job['options'];
-		$result = $this->remote(
+		$skip     = 0;
+		$expected = null;
+		$progress = self::read_progress( $job );
+		if ( $progress ) {
+			$job['cursor']      = $progress['cursor'];
+			$job['step_rows']   = $progress['step_rows'];
+			$job['rows']        = $progress['rows'];
+			$job['fks']         = $progress['fks'];
+			$job['step_writes'] = $progress['writes'];
+			$skip               = $progress['batch']['applied'] ?? 0;
+			$expected           = $progress['batch']['hash'] ?? null;
+		}
+		$o          = $job['options'];
+		$result     = $this->remote(
 			$job,
 			'pull_rows',
 			array(
@@ -795,11 +883,33 @@ final class Runner {
 				'max_bytes'      => $job['max_bytes'],
 			)
 		);
-		foreach ( MemorySink::decode( (string) $result['statements'] ) as $sql ) {
+		$statements = MemorySink::decode( (string) $result['statements'] );
+		foreach ( $statements as $sql ) {
 			if ( ! Schema::safe_temp_statement( $sql, $step['target'] ) ) {
 				throw new \RuntimeException( 'The remote site sent a statement that does not belong to ' . $step['source'] . '.' );
 			}
+		}
+		$hash = md5( (string) $result['statements'] );
+		if ( null !== $expected && $expected !== $hash ) {
+			throw new \RuntimeException( 'The remote site changed while a cut-off request was repeated. Cancel and pull again.' );
+		}
+		foreach ( array_slice( $statements, $skip ) as $i => $sql ) {
 			$this->db->query( str_starts_with( $sql, 'CREATE' ) ? $this->schema->known_collations( $sql ) : $sql );
+			$job['step_writes'] = ( $job['step_writes'] ?? 0 ) + 1;
+			self::write_progress(
+				$job,
+				array(
+					'writes'    => $job['step_writes'],
+					'cursor'    => $job['cursor'],
+					'step_rows' => $job['step_rows'],
+					'rows'      => $job['rows'],
+					'fks'       => $job['fks'],
+					'batch'     => array(
+						'hash'    => $hash,
+						'applied' => $skip + $i + 1,
+					),
+				)
+			);
 		}
 		foreach ( (array) $result['fks'] as $clause ) {
 			$safe = Schema::foreign_key( (string) $clause, $job['ref_map'], $job['site']['prefix'] );
@@ -811,9 +921,20 @@ final class Runner {
 				'clause' => $safe,
 			);
 		}
-		$job['cursor']     = is_array( $result['cursor'] ) ? $result['cursor'] : null;
-		$job['step_rows'] += (int) $result['rows'];
-		$job['rows']      += (int) $result['rows'];
+		$job['cursor']      = is_array( $result['cursor'] ) ? $result['cursor'] : null;
+		$job['step_rows']  += (int) $result['rows'];
+		$job['rows']       += (int) $result['rows'];
+		$job['step_writes'] = ( $job['step_writes'] ?? 0 ) + 1;
+		self::write_progress(
+			$job,
+			array(
+				'writes'    => $job['step_writes'],
+				'cursor'    => $job['cursor'],
+				'step_rows' => $job['step_rows'],
+				'rows'      => $job['rows'],
+				'fks'       => $job['fks'],
+			)
+		);
 
 		if ( null === $job['cursor'] ) {
 			self::log( $job, $step['label'] . ': ' . $job['step_rows'] . ' rows' );

@@ -48,12 +48,12 @@ final class JobFlowTest extends DbTestCase {
 	 * run once from the same saved state and that result is thrown away (a request that was cut
 	 * off before the job was saved, then repeated).
 	 *
-	 * @param list<string> $repeat Step types to repeat.
+	 * @param list<string> $repeat Step types to repeat ('*' = every step).
 	 */
 	private function run_job( Db $db, array $job, array $repeat = array() ): array {
 		$runner = new Runner( $db );
 		for ( $i = 0; $i < 5000 && Runner::is_open( $job ); $i++ ) {
-			if ( in_array( $job['steps'][ $job['index'] ]['type'] ?? '', $repeat, true ) ) {
+			if ( array_intersect( array( '*', $job['steps'][ $job['index'] ]['type'] ?? '' ), $repeat ) ) {
 				$runner->step( $job, new Budget( 0 ) );
 			}
 			$job = $runner->step( $job, new Budget( 0 ) );
@@ -154,7 +154,21 @@ final class JobFlowTest extends DbTestCase {
 		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
 	}
 
-	public function test_repeated_import_step_gives_the_same_result(): void {
+	public static function repeated_steps(): array {
+		return array(
+			'import'     => array( array( 'import' ) ),
+			'copy'       => array( array( 'copy' ) ),
+			'finalize'   => array( array( 'finalize' ) ),
+			'every step' => array( array( '*' ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider repeated_steps
+	 *
+	 * @param list<string> $repeat Step types to repeat.
+	 */
+	public function test_repeated_import_steps_give_the_same_result( array $repeat ): void {
 		// The mysqldump fixture plus a table without a primary key, where a repeated INSERT
 		// would not fail but silently duplicate rows.
 		$file = $this->storage . '/repeat.sql';
@@ -180,16 +194,29 @@ final class JobFlowTest extends DbTestCase {
 		$once = $this->site_b();
 		$import( $once, array() );
 		$twice = $this->site_b();
-		$job   = $import( $twice, array( 'import' ) );
+		$job   = $import( $twice, $repeat );
 
-		$this->assertNotEmpty( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'continuing where it stopped' ) ), 'the repeated requests resumed' );
+		if ( array_intersect( array( '*', 'import', 'copy' ), $repeat ) ) {
+			$this->assertNotEmpty( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'continuing where it stopped' ) ), 'the repeated requests resumed' );
+		}
 
 		$this->assertSame( '2', $twice->value( 'SELECT COUNT(*) FROM wpb_log' ) );
 		foreach ( array( 'wpb_child', 'wpb_log', 'wpb_options', 'wpb_parent', 'wpb_posts', 'wpb_usermeta' ) as $table ) {
 			$this->assertSame( $this->checksum( $once, $table ), $this->checksum( $twice, $table ), $table );
 		}
 		$this->assertSame( array(), ( new Schema( $twice ) )->temp_tables() );
-		$this->assertFileDoesNotExist( $job['files']['import_progress'], 'the progress record is deleted with the job' );
+		$this->assertSame( array(), glob( $this->storage . '/*.progress' ), 'progress records are deleted with the job' );
+	}
+
+	public function test_repeated_export_steps_give_the_same_dump(): void {
+		$dump = function ( array $repeat ): string {
+			$a   = $this->site_a();
+			$job = $this->run_job( $a, Planner::create( 'export', array(), $this->site( 'wpa_', self::OLD ), new Schema( $a ) ), $repeat );
+			// The header comment carries the time of the export.
+			return (string) preg_replace( '/^-- .*\n/m', '', implode( '', gzfile( $job['files']['export'] ) ) );
+		};
+
+		$this->assertSame( $dump( array() ), $dump( array( '*' ) ) );
 	}
 
 	public function test_import_real_mysqldump_file(): void {
