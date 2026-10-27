@@ -1,5 +1,7 @@
 # Siteferry
 
+[![CI](https://github.com/kurodaSensei/siteferry/actions/workflows/ci.yml/badge.svg)](https://github.com/kurodaSensei/siteferry/actions/workflows/ci.yml)
+
 [Español](README.es.md)
 
 Siteferry is a WordPress migration plugin. It exports, imports and runs search-replace on the database without breaking serialized data or JSON. It also pulls and pushes databases and files between two sites over a signed connection, packs a whole site into one `.sfy` file, and can undo the last operation.
