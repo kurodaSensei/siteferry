@@ -44,11 +44,18 @@ final class JobFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Runs the job to the end, one unit of work per call.
+	 * Runs the job to the end, one unit of work per call. Steps whose type is in $repeat first
+	 * run once from the same saved state and that result is thrown away (a request that was cut
+	 * off before the job was saved, then repeated).
+	 *
+	 * @param list<string> $repeat Step types to repeat.
 	 */
-	private function run_job( Db $db, array $job ): array {
+	private function run_job( Db $db, array $job, array $repeat = array() ): array {
 		$runner = new Runner( $db );
 		for ( $i = 0; $i < 5000 && Runner::is_open( $job ); $i++ ) {
+			if ( in_array( $job['steps'][ $job['index'] ]['type'] ?? '', $repeat, true ) ) {
+				$runner->step( $job, new Budget( 0 ) );
+			}
 			$job = $runner->step( $job, new Budget( 0 ) );
 		}
 		$this->assertSame( 'done', $job['status'], (string) $job['error'] . "\n" . implode( "\n", $job['log'] ) );
@@ -145,6 +152,44 @@ final class JobFlowTest extends DbTestCase {
 		$this->assertNotEmpty( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'skipped because they would collide' ) && str_contains( $l, 'wpb_options' ) ) );
 		$this->assertSame( '0', $b->value( "SELECT COUNT(*) FROM wpb_options WHERE option_value LIKE '%stale.test%'" ) );
 		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
+	}
+
+	public function test_repeated_import_step_gives_the_same_result(): void {
+		// The mysqldump fixture plus a table without a primary key, where a repeated INSERT
+		// would not fail but silently duplicate rows.
+		$file = $this->storage . '/repeat.sql';
+		file_put_contents(
+			$file,
+			file_get_contents( dirname( __DIR__ ) . '/fixtures/mysqldump-wp.sql' )
+			. "CREATE TABLE `wpa_log` (`msg` varchar(20) NOT NULL) ENGINE=InnoDB;\nINSERT INTO `wpa_log` VALUES ('a'),('b');\n"
+		);
+		$import = fn( Db $db, array $repeat ) => $this->run_job(
+			$db,
+			Planner::create(
+				'import',
+				array(
+					'file'     => $file,
+					'auto_url' => true,
+				),
+				$this->site( 'wpb_', self::NEW ),
+				new Schema( $db )
+			),
+			$repeat
+		);
+
+		$once = $this->site_b();
+		$import( $once, array() );
+		$twice = $this->site_b();
+		$job   = $import( $twice, array( 'import' ) );
+
+		$this->assertNotEmpty( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'continuing where it stopped' ) ), 'the repeated requests resumed' );
+
+		$this->assertSame( '2', $twice->value( 'SELECT COUNT(*) FROM wpb_log' ) );
+		foreach ( array( 'wpb_child', 'wpb_log', 'wpb_options', 'wpb_parent', 'wpb_posts', 'wpb_usermeta' ) as $table ) {
+			$this->assertSame( $this->checksum( $once, $table ), $this->checksum( $twice, $table ), $table );
+		}
+		$this->assertSame( array(), ( new Schema( $twice ) )->temp_tables() );
+		$this->assertFileDoesNotExist( $job['files']['import_progress'], 'the progress record is deleted with the job' );
 	}
 
 	public function test_import_real_mysqldump_file(): void {

@@ -22,7 +22,8 @@ final class SqlFileReader {
 	 * @param string   $path         Uncompressed .sql file.
 	 * @param int      $offset       Byte to continue from.
 	 * @param Budget   $budget       Available time.
-	 * @param callable $on_statement Receives each statement without the trailing ";".
+	 * @param callable $on_statement Receives each statement without the trailing ";", the offset
+	 *                               right after it and the statements skipped so far in this call.
 	 * @return array{offset: int, done: bool, skipped: int}
 	 *
 	 * @throws \RuntimeException If it cannot be opened.
@@ -61,9 +62,9 @@ final class SqlFileReader {
 			}
 			$buffer .= $line;
 			if ( str_ends_with( $trimmed, ';' ) ) {
-				$on_statement( rtrim( trim( $buffer ), ';' ) );
-				$buffer = '';
 				$offset = ftell( $handle );
+				$on_statement( rtrim( trim( $buffer ), ';' ), $offset, $skipped );
+				$buffer = '';
 				if ( $budget->exhausted() ) {
 					$done = false;
 					break;
@@ -71,8 +72,8 @@ final class SqlFileReader {
 			}
 		}
 		if ( $done && '' !== trim( $buffer ) ) {
-			$on_statement( rtrim( trim( $buffer ), ';' ) ); // Last statement without a ";".
 			$offset = ftell( $handle );
+			$on_statement( rtrim( trim( $buffer ), ';' ), $offset, $skipped ); // Last statement without a ";".
 		}
 		fclose( $handle );
 

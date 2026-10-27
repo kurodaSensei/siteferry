@@ -285,12 +285,14 @@ final class Runner {
 				return true;
 
 			case 'import':
+				$this->resume_import( $job );
 				$result                    = SqlFileReader::read(
 					$job['files']['import_sql'] ?? $job['files']['import'],
 					(int) ( $job['cursor']['offset'] ?? 0 ),
 					$budget,
-					function ( string $sql ) use ( &$job ) {
+					function ( string $sql, int $offset, int $skipped ) use ( &$job ) {
 						$this->import_statement( $job, $sql );
+						$this->record_import_progress( $job, $offset, $skipped );
 					}
 				);
 				$job['cursor']             = array( 'offset' => $result['offset'] );
@@ -330,7 +332,7 @@ final class Runner {
 						$this->db->query( 'DROP TABLE IF EXISTS ' . Db::ident( Schema::RAW . $name ) );
 					}
 				}
-				foreach ( array( 'import', 'import_sql', 'import_gz', 'dump' ) as $key ) {
+				foreach ( array( 'import', 'import_sql', 'import_gz', 'import_progress', 'dump' ) as $key ) {
 					if ( in_array( $key, $job['owned'], true ) && isset( $job['files'][ $key ] ) ) {
 						self::delete( $job['files'][ $key ] );
 					}
@@ -338,6 +340,56 @@ final class Runner {
 				return true;
 		}
 		throw new \RuntimeException( 'Unknown step: ' . $step['type'] );
+	}
+
+	/**
+	 * Picks up the progress of a request that was cut off after running import statements but
+	 * before the job was saved. Those statements are already in the raw tables, so running them
+	 * again would fail with "Duplicate entry" (or silently duplicate rows in a table without a
+	 * primary key). The load continues right after the last statement that was recorded.
+	 *
+	 * @param array $job Job.
+	 */
+	private function resume_import( array &$job ): void {
+		$job['files']['import_progress'] ??= $job['site']['storage'] . '/import-' . $job['id'] . '.sql.progress';
+		if ( ! in_array( 'import_progress', $job['owned'], true ) ) {
+			$job['owned'][] = 'import_progress';
+		}
+		$file     = $job['files']['import_progress'];
+		$progress = is_file( $file ) ? unserialize( (string) file_get_contents( $file ), array( 'allowed_classes' => false ) ) : null; // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Our own file, no classes allowed.
+		if ( is_array( $progress ) && $progress['offset'] > (int) ( $job['cursor']['offset'] ?? 0 ) ) {
+			$job['cursor']            = array( 'offset' => $progress['offset'] );
+			$job['import']['tables']  = $progress['tables'];
+			$job['import']['skipped'] = $progress['skipped'];
+			$job['fks']               = $progress['fks'];
+			self::log( $job, 'A previous request was cut off while loading; continuing where it stopped.' );
+		}
+	}
+
+	/**
+	 * Records the load progress after a statement, so a repeated request can resume from it.
+	 * The file is replaced atomically: a request cut off mid-write leaves the previous record.
+	 *
+	 * @param array $job     Job.
+	 * @param int   $offset  Offset right after the statement.
+	 * @param int   $skipped Statements the reader skipped so far in this call.
+	 *
+	 * @throws \RuntimeException If it cannot be written.
+	 */
+	private function record_import_progress( array $job, int $offset, int $skipped ): void {
+		// ponytail: a cut between a statement and this write still repeats that one statement; closing it needs the progress in the same transaction as the INSERT.
+		$file = $job['files']['import_progress'];
+		$data = serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Read back only by resume_import(), without classes.
+			array(
+				'offset'  => $offset,
+				'tables'  => $job['import']['tables'],
+				'skipped' => $job['import']['skipped'] + $skipped,
+				'fks'     => $job['fks'],
+			)
+		);
+		if ( false === file_put_contents( $file . '.tmp', $data ) || ! rename( $file . '.tmp', $file ) ) {
+			throw new \RuntimeException( 'Cannot write ' . $file );
+		}
 	}
 
 	/**
