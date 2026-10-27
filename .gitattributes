@@ -6,3 +6,4 @@
 /phpunit.xml.dist export-ignore
 /.gitignore export-ignore
 /.gitattributes export-ignore
+/README.es.md export-ignore
