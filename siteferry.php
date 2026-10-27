@@ -6,9 +6,13 @@
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Kuroda Sensei
+ * License:           GPL-2.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       siteferry
  *
- * @package Siteferry
+ * @package   Siteferry
+ * @copyright 2026 Kuroda Sensei
+ * @license   GPL-2.0-or-later
  */
 
 defined( 'ABSPATH' ) || exit;

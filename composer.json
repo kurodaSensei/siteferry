@@ -2,6 +2,10 @@
 	"name": "kurodasensei/siteferry",
 	"description": "Siteferry: migraciones de base de datos para WordPress.",
 	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"authors": [
+		{ "name": "Kuroda Sensei" }
+	],
 	"require": {
 		"php": ">=8.1"
 	},
