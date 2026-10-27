@@ -1,0 +1,7 @@
+/vendor/
+/.phpunit.cache/
+/.phpunit.result.cache
+/tests/e2e/.env
+/tests/e2e/.env.pilot
+/tests/e2e/.env.remote
+/dist/

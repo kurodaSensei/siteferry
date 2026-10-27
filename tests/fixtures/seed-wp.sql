@@ -1,0 +1,12 @@
+SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE __P__options (option_id bigint unsigned NOT NULL AUTO_INCREMENT, option_name varchar(191) NOT NULL DEFAULT '', option_value longtext NOT NULL, autoload varchar(20) NOT NULL DEFAULT 'yes', PRIMARY KEY (option_id), UNIQUE KEY option_name (option_name)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE __P__posts (ID bigint unsigned NOT NULL AUTO_INCREMENT, post_content longtext NOT NULL, post_date_gmt datetime NOT NULL DEFAULT '0000-00-00 00:00:00', guid varchar(255) NOT NULL DEFAULT '', PRIMARY KEY (ID)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE __P__usermeta (umeta_id bigint unsigned NOT NULL AUTO_INCREMENT, user_id bigint unsigned NOT NULL DEFAULT '0', meta_key varchar(255) DEFAULT NULL, meta_value longtext, PRIMARY KEY (umeta_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE __P__parent (id int NOT NULL, name varchar(50) DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB;
+CREATE TABLE __P__child (id int NOT NULL, parent_id int DEFAULT NULL, PRIMARY KEY (id), KEY parent_id (parent_id), CONSTRAINT __P__child_fk FOREIGN KEY (parent_id) REFERENCES __P__parent (id) ON DELETE CASCADE) ENGINE=InnoDB;
+INSERT INTO __P__options (option_name, option_value, autoload) VALUES ('siteurl', 'http://old.test', 'yes'), ('home', 'http://old.test', 'yes'), ('blog_public', '1', 'yes'), ('widget_text', 'a:1:{i:2;a:1:{s:4:"text";s:28:"<a href="http://old.test/x">";}}', 'yes'), ('__P__user_roles', 'a:1:{s:13:"administrator";a:1:{s:4:"name";s:13:"Administrator";}}', 'yes'), ('active_plugins', 'a:0:{}', 'yes'), ('siteferry_job', 'A-job', 'no');
+INSERT INTO __P__posts (ID, post_content, post_date_gmt, guid) VALUES (1, '<!-- wp:image {"url":"http:\\/\\/old.test\\/a.jpg"} --><img src="http://old.test/a.jpg">', '0000-00-00 00:00:00', 'http://old.test/?p=1'), (2, 'Hola mundo 🚀', '2024-01-01 10:00:00', 'http://old.test/?p=2');
+INSERT INTO __P__usermeta (umeta_id, user_id, meta_key, meta_value) VALUES (1, 1, '__P__capabilities', 'a:1:{s:13:"administrator";b:1;}'), (2, 1, 'nickname', 'admin');
+INSERT INTO __P__parent VALUES (1, 'uno'), (2, 'dos');
+INSERT INTO __P__child VALUES (10, 1), (20, 2);
+CREATE VIEW __P__view AS SELECT ID FROM __P__posts;

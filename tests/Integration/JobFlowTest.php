@@ -1,0 +1,223 @@
+<?php
+/**
+ * Flujos completos: exportar, importar, reemplazar y cancelar.
+ *
+ * @package Siteferry
+ */
+
+namespace Siteferry\Tests\Integration;
+
+use Siteferry\Engine\Budget;
+use Siteferry\Engine\Schema;
+use Siteferry\Job\Planner;
+use Siteferry\Job\Runner;
+use Siteferry\Support\Db;
+
+final class JobFlowTest extends DbTestCase {
+
+	private const OLD = 'http://old.test';
+	private const NEW = 'https://new.example';
+
+	/**
+	 * Sitio "A" de prueba (prefijo wpa_, URL http://old.test).
+	 */
+	private function site_a(): Db {
+		[ $db ] = $this->database();
+		$sql    = str_replace( '__P__', 'wpa_', (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/seed-wp.sql' ) );
+		$db->in_migration_session( fn() => $this->exec( $db, $sql ) );
+		return $db;
+	}
+
+	/**
+	 * Sitio "B" de destino (prefijo wpb_, URL https://new.example) con opciones propias.
+	 */
+	private function site_b(): Db {
+		[ $db ] = $this->database();
+		$sql    = str_replace( '__P__', 'wpb_', (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/seed-wp.sql' ) );
+		$db->in_migration_session( fn() => $this->exec( $db, $sql ) );
+		$db->query( "UPDATE wpb_options SET option_value = '" . self::NEW . "' WHERE option_name IN ('home', 'siteurl')" );
+		$db->query( "UPDATE wpb_options SET option_value = '0' WHERE option_name = 'blog_public'" );
+		$db->query( "UPDATE wpb_options SET option_value = 'B-job' WHERE option_name = 'siteferry_job'" );
+		$db->query( "UPDATE wpb_options SET option_value = 'a:2:{i:0;s:35:\"siteferry/siteferry.php\";i:1;s:15:\"other/other.php\";}' WHERE option_name = 'active_plugins'" );
+		$db->query( "INSERT INTO wpb_posts (ID, post_content) VALUES (99, 'post que debe desaparecer')" );
+		return $db;
+	}
+
+	/**
+	 * Corre el job hasta el final, una unidad de trabajo por llamada.
+	 */
+	private function run_job( Db $db, array $job ): array {
+		$runner = new Runner( $db );
+		for ( $i = 0; $i < 5000 && Runner::is_open( $job ); $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+		$this->assertSame( 'done', $job['status'], (string) $job['error'] . "\n" . implode( "\n", $job['log'] ) );
+		$this->assertGreaterThan( 10, $i, 'El job debe avanzar en muchos pasos cortos' );
+		return $job;
+	}
+
+	private function option( Db $db, string $table, string $name ): ?string {
+		return $db->value( "SELECT option_value FROM `$table` WHERE option_name = " . $db->quote( $name ) );
+	}
+
+	public function test_export_then_import_into_another_prefix(): void {
+		$a = $this->site_a();
+		$b = $this->site_b();
+
+		$export = $this->run_job( $a, Planner::create( 'export', array(), $this->site( 'wpa_', self::OLD ), new Schema( $a ) ) );
+		$file   = $export['files']['export'];
+		$this->assertFileExists( $file );
+		$this->assertStringNotContainsString( 'A-job', implode( '', gzfile( $file ) ), 'las opciones siteferry_ (claves del plugin) no se exportan' );
+
+		$job = Planner::create(
+			'import',
+			array(
+				'file'     => $file,
+				'auto_url' => true,
+				'backup'   => true,
+			),
+			$this->site( 'wpb_', self::NEW ),
+			new Schema( $b )
+		);
+		$job = $this->run_job( $b, $job );
+
+		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'home' ) );
+		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'siteurl' ) );
+		$this->assertSame( '0', $this->option( $b, 'wpb_options', 'blog_public' ), 'blog_public del destino se conserva' );
+		$this->assertSame( 'B-job', $this->option( $b, 'wpb_options', 'siteferry_job' ), 'las opciones siteferry_ del destino se conservan' );
+		$this->assertContains( 'siteferry/siteferry.php', unserialize( $this->option( $b, 'wpb_options', 'active_plugins' ) ) );
+		$this->assertStringContainsString( self::NEW . '/x', unserialize( $this->option( $b, 'wpb_options', 'widget_text' ) )[2]['text'] );
+		$this->assertNotNull( $this->option( $b, 'wpb_options', 'wpb_user_roles' ) );
+		$this->assertNull( $this->option( $b, 'wpb_options', 'wpa_user_roles' ) );
+
+		$content = (string) $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 1' );
+		$this->assertStringContainsString( 'https:\/\/new.example\/a.jpg', $content );
+		$this->assertStringContainsString( 'src="https://new.example/a.jpg"', $content );
+		$this->assertSame( self::OLD . '/?p=1', $b->value( 'SELECT guid FROM wpb_posts WHERE ID = 1' ), 'guid no se toca' );
+		$this->assertNull( $b->value( 'SELECT ID FROM wpb_posts WHERE ID = 99' ) );
+		$this->assertSame( '1', $b->value( "SELECT COUNT(*) FROM wpb_usermeta WHERE meta_key = 'wpb_capabilities'" ) );
+		$this->assertSame( '0', $b->value( "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'wpa\\_%'" ) );
+		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
+		$this->assertSame(
+			'wpb_parent',
+			$b->value( "SELECT REFERENCED_TABLE_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'wpb_child' AND REFERENCED_TABLE_NAME IS NOT NULL" )
+		);
+
+		$backup = implode( '', gzfile( $job['files']['backup'] ) );
+		$this->assertStringContainsString( 'post que debe desaparecer', $backup );
+		$this->assertFileExists( $file, 'el archivo que no es del plugin no se borra' );
+		$this->assertFileDoesNotExist( $job['files']['import_sql'], 'el .sql descomprimido sí se borra' );
+	}
+
+	public function test_dump_with_two_installs_needs_the_source_prefix(): void {
+		// Una base con la instalación activa (wpa_) y restos de otra (wpb_) en la misma base.
+		$source = $this->site_a();
+		$stale  = str_replace( '__P__', 'wpb_', (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/seed-wp.sql' ) );
+		$source->in_migration_session( fn() => $this->exec( $source, $stale ) );
+		$source->query( "UPDATE wpb_options SET option_value = 'http://stale.test' WHERE option_name IN ('home', 'siteurl')" );
+		$file = $this->run_job( $source, Planner::create( 'export', array(), $this->site( '', self::OLD ), new Schema( $source ) ) )['files']['export'];
+
+		$b      = $this->site_b();
+		$runner = new Runner( $b );
+		$job    = Planner::create( 'import', array( 'file' => $file, 'auto_url' => true ), $this->site( 'wpb_', self::NEW ), new Schema( $b ) );
+		for ( $i = 0; $i < 5000 && Runner::is_open( $job ); $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+		$this->assertSame( 'failed', $job['status'] );
+		$this->assertStringContainsString( 'wpa_, wpb_', (string) $job['error'] );
+		$this->assertSame( 'post que debe desaparecer', $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 99' ), 'nada cambió' );
+		$runner->cancel( $job );
+
+		$job = Planner::create(
+			'import',
+			array(
+				'file'          => $file,
+				'auto_url'      => true,
+				'source_prefix' => 'wpa_',
+			),
+			$this->site( 'wpb_', self::NEW ),
+			new Schema( $b )
+		);
+		$job = $this->run_job( $b, $job );
+
+		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'home' ) );
+		$this->assertNull( $b->value( 'SELECT ID FROM wpb_posts WHERE ID = 99' ) );
+		$this->assertNotEmpty( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'omitidas porque chocarían' ) && str_contains( $l, 'wpb_options' ) ) );
+		$this->assertSame( '0', $b->value( "SELECT COUNT(*) FROM wpb_options WHERE option_value LIKE '%stale.test%'" ) );
+		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
+	}
+
+	public function test_import_real_mysqldump_file(): void {
+		$b   = $this->site_b();
+		$job = Planner::create(
+			'import',
+			array(
+				'file'     => dirname( __DIR__ ) . '/fixtures/mysqldump-wp.sql',
+				'auto_url' => true,
+			),
+			$this->site( 'wpb_', self::NEW ),
+			new Schema( $b )
+		);
+		$job = $this->run_job( $b, $job );
+
+		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'home' ) );
+		$this->assertSame( 'Hola mundo 🚀', $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 2' ) );
+		$this->assertSame( '0000-00-00 00:00:00', $b->value( 'SELECT post_date_gmt FROM wpb_posts WHERE ID = 1' ) );
+		$this->assertSame( '2', $b->value( 'SELECT COUNT(*) FROM wpb_child' ) );
+		$this->assertGreaterThan( 0, $job['import']['skipped'] + count( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'omitidas' ) ) ) );
+		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
+	}
+
+	public function test_replace_in_place_with_backup(): void {
+		$a   = $this->site_a();
+		$job = Planner::create(
+			'replace',
+			array(
+				'pairs'  => array( array( self::OLD, self::NEW ) ),
+				'backup' => true,
+			),
+			$this->site( 'wpa_', self::OLD ),
+			new Schema( $a )
+		);
+		$job = $this->run_job( $a, $job );
+
+		$this->assertSame( self::NEW, $this->option( $a, 'wpa_options', 'home' ) );
+		$this->assertStringContainsString( self::NEW . '/x', unserialize( $this->option( $a, 'wpa_options', 'widget_text' ) )[2]['text'] );
+		$this->assertSame( self::OLD . '/?p=1', $a->value( 'SELECT guid FROM wpa_posts WHERE ID = 1' ) );
+		$this->assertSame( 'A-job', $this->option( $a, 'wpa_options', 'siteferry_job' ) );
+		$this->assertSame( array(), ( new Schema( $a ) )->temp_tables() );
+		$this->assertStringContainsString( self::OLD, implode( '', gzfile( $job['files']['backup'] ) ), 'el backup tiene los datos de antes' );
+	}
+
+	public function test_cancel_leaves_live_tables_untouched(): void {
+		$a      = $this->site_a();
+		$runner = new Runner( $a );
+		$job    = Planner::create( 'replace', array( 'pairs' => array( array( self::OLD, self::NEW ) ) ), $this->site( 'wpa_', self::OLD ), new Schema( $a ) );
+		for ( $i = 0; $i < 4; $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+		$this->assertNotSame( array(), ( new Schema( $a ) )->temp_tables() );
+
+		$job = $runner->cancel( $job );
+		$this->assertSame( 'cancelled', $job['status'] );
+		$this->assertSame( array(), ( new Schema( $a ) )->temp_tables() );
+		$this->assertSame( self::OLD, $this->option( $a, 'wpa_options', 'home' ) );
+	}
+
+	public function test_preflight_rejects_invalid_regex_without_touching_anything(): void {
+		$a   = $this->site_a();
+		$job = Planner::create(
+			'replace',
+			array(
+				'pairs' => array( array( '#(#', 'x' ) ),
+				'regex' => true,
+			),
+			$this->site( 'wpa_', self::OLD ),
+			new Schema( $a )
+		);
+		$job = ( new Runner( $a ) )->step( $job, new Budget( 10 ) );
+		$this->assertSame( 'failed', $job['status'] );
+		$this->assertStringContainsString( 'Expresión regular inválida', (string) $job['error'] );
+		$this->assertSame( array(), ( new Schema( $a ) )->temp_tables() );
+	}
+}

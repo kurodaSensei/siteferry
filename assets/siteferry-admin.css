@@ -1,0 +1,73 @@
+.siteferry-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	max-width: 960px;
+	padding: 8px 24px 16px;
+	margin-top: 16px;
+}
+
+.siteferry-actions {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 12px;
+	margin: 16px 0;
+}
+
+.siteferry-action {
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	cursor: pointer;
+	display: grid;
+	gap: 4px;
+	grid-template-columns: auto 1fr;
+	padding: 12px;
+}
+
+.siteferry-action span {
+	color: #50575e;
+	grid-column: 2;
+}
+
+.siteferry-action:has(input:checked) {
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+}
+
+.siteferry-section {
+	margin: 20px 0;
+}
+
+.siteferry-pairs td:last-child,
+.siteferry-pairs th:last-child {
+	text-align: center;
+	width: 32px;
+}
+
+.siteferry-options label {
+	display: block;
+	margin: 6px 0;
+}
+
+.siteferry-tables {
+	columns: 2 280px;
+	max-height: 320px;
+	overflow: auto;
+}
+
+#siteferry-bar {
+	height: 20px;
+	width: 100%;
+}
+
+#siteferry-log {
+	background: #f6f7f7;
+	max-height: 320px;
+	overflow: auto;
+	padding: 8px;
+	white-space: pre-wrap;
+}
+
+[hidden] {
+	display: none !important;
+}

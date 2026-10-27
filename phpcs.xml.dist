@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<ruleset name="Siteferry">
+	<file>siteferry.php</file>
+	<file>src</file>
+	<file>mu-plugin</file>
+	<arg name="extensions" value="php"/>
+	<arg value="sp"/>
+	<config name="minimum_wp_version" value="6.0"/>
+	<config name="testVersion" value="8.1-"/>
+
+	<rule ref="WordPress">
+		<!-- PSR-4: los archivos se llaman como sus clases. -->
+		<exclude name="WordPress.Files.FileName"/>
+		<!-- El motor habla con MySQL directamente a través de la conexión de $wpdb. -->
+		<exclude name="WordPress.DB.DirectDatabaseQuery"/>
+		<exclude name="WordPress.DB.RestrictedClasses"/>
+		<exclude name="WordPress.DB.RestrictedFunctions"/>
+		<!-- Escritura de dumps comprimidos y subida por trozos. -->
+		<exclude name="WordPress.WP.AlternativeFunctions"/>
+		<!-- Los mensajes de excepción van a JSON (REST) o a WP-CLI; la interfaz los muestra con textContent. -->
+		<exclude name="WordPress.Security.EscapeOutput.ExceptionNotEscaped"/>
+	</rule>
+	<!-- Los genéricos (list<string>) documentan mejor que "array". -->
+	<rule ref="Squiz.Commenting.FunctionComment.IncorrectTypeHint"><severity>0</severity></rule>
+	<rule ref="WordPress.WP.I18n">
+		<properties><property name="text_domain" type="array"><element value="siteferry"/></property></properties>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties><property name="prefixes" type="array"><element value="siteferry_"/><element value="Siteferry"/></property></properties>
+	</rule>
+</ruleset>
