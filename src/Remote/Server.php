@@ -1,6 +1,6 @@
 <?php
 /**
- * Operaciones que este sitio atiende cuando otro sitio hace pull o push.
+ * Operations this site serves when another site does a pull or push.
  *
  * @package Siteferry
  */
@@ -17,23 +17,23 @@ use Siteferry\Job\Runner;
 use Siteferry\Support\Db;
 
 /**
- * Lógica del lado remoto. No depende de WordPress: la firma, el reloj y el nonce ya los
- * comprobó quien la llama (RemoteController); aquí se comprueban los permisos antes de
- * cualquier efecto.
+ * Remote-side logic. It does not depend on WordPress: the signature, the clock and the nonce have
+ * already been checked by the caller (RemoteController); here the permissions are checked before
+ * any effect.
  */
 final class Server {
 
 	public const PROTOCOL = 1;
 
-	/** Bytes de SQL (sin comprimir) por respuesta de pull. */
+	/** Bytes of SQL (uncompressed) per pull response. */
 	private const PULL_BYTES = 4 * 1024 * 1024;
 
-	/** Nombre válido de tabla temporal de destino. */
+	/** Valid name for a temporary destination table. */
 	private const TMP_NAME = '/^_sft_[A-Za-z0-9_$]{1,59}$/';
 
 
 	/**
-	 * Estructura de la BD.
+	 * DB structure.
 	 *
 	 * @var Schema
 	 */
@@ -42,12 +42,12 @@ final class Server {
 	/**
 	 * Constructor.
 	 *
-	 * @param Db       $db      Conexión.
-	 * @param array    $site    Datos del sitio (ver Planner::create).
+	 * @param Db       $db      Connection.
+	 * @param array    $site    Site data (see Planner::create).
 	 * @param array    $perms   allow_pull, allow_push.
-	 * @param \Closure $load    fn(): ?array — job guardado.
+	 * @param \Closure $load    fn(): ?array — saved job.
 	 * @param \Closure $save    fn(array $job): void.
-	 * @param string   $version Versión del plugin.
+	 * @param string   $version Plugin version.
 	 */
 	public function __construct(
 		private Db $db,
@@ -61,12 +61,12 @@ final class Server {
 	}
 
 	/**
-	 * Atiende una operación.
+	 * Handles an operation.
 	 *
-	 * @param string $op   Operación.
-	 * @param array  $args Argumentos.
+	 * @param string $op   Operation.
+	 * @param array  $args Arguments.
 	 *
-	 * @throws \RuntimeException Si la operación no existe, no está permitida o falla.
+	 * @throws \RuntimeException If the operation does not exist, is not allowed or fails.
 	 */
 	public function handle( string $op, array $args ): array {
 		return match ( $op ) {
@@ -79,12 +79,12 @@ final class Server {
 			'push_cancel' => $this->push_cancel( $args ),
 			'files_scan', 'files_get', 'files_put', 'files_finalize' => ( new FileOps( $this->site['roots'] ?? array(), $this->site['storage'], $this->perms ) )
 				->handle( $op, $args, $args['_binary'] ?? null ),
-			default       => throw new \RuntimeException( 'Operación desconocida: ' . $op ),
+			default       => throw new \RuntimeException( 'Unknown operation: ' . $op ),
 		};
 	}
 
 	/**
-	 * Datos de este sitio para el otro.
+	 * This site's data for the other site.
 	 */
 	private function hello(): array {
 		return array(
@@ -105,21 +105,21 @@ final class Server {
 	}
 
 	/**
-	 * Lee un tramo de una tabla y lo devuelve como SQL hacia la tabla temporal del otro sitio.
+	 * Reads a chunk of a table and returns it as SQL for the other site's temporary table.
 	 *
 	 * @param array $args table, target, cursor, pairs, case_sensitive, regex, replace_guids, prefix_to, max_bytes.
 	 *
-	 * @throws \RuntimeException Si no está permitido o los argumentos no son válidos.
+	 * @throws \RuntimeException If it is not allowed or the arguments are not valid.
 	 */
 	private function pull_rows( array $args ): array {
 		$this->require( 'allow_pull' );
 		$table  = (string) ( $args['table'] ?? '' );
 		$target = (string) ( $args['target'] ?? '' );
 		if ( ! isset( $this->schema->stats( $this->site['prefix'] )[ $table ] ) ) {
-			throw new \RuntimeException( 'Tabla no disponible: ' . $table );
+			throw new \RuntimeException( 'Table not available: ' . $table );
 		}
 		if ( ! preg_match( self::TMP_NAME, $target ) ) {
-			throw new \RuntimeException( 'Tabla de destino inválida.' );
+			throw new \RuntimeException( 'Invalid destination table.' );
 		}
 		$replacer = new Replacer( (array) ( $args['pairs'] ?? array() ), ! empty( $args['case_sensitive'] ), ! empty( $args['regex'] ) );
 		$copier   = new TableCopier(
@@ -146,17 +146,17 @@ final class Server {
 	}
 
 	/**
-	 * Empieza a recibir un push: crea el job de recepción (con backup si se pidió).
+	 * Starts receiving a push: creates the receive job (with a backup if requested).
 	 *
 	 * @param array $args backup.
 	 *
-	 * @throws \RuntimeException Si no está permitido o hay otra operación en curso.
+	 * @throws \RuntimeException If it is not allowed or another operation is in progress.
 	 */
 	private function push_begin( array $args ): array {
 		$this->require( 'allow_push' );
 		$current = ( $this->load )();
 		if ( Runner::is_open( $current ) && time() - (int) $current['heartbeat'] < 600 ) {
-			throw new \RuntimeException( 'El sitio remoto tiene otra operación en curso.' );
+			throw new \RuntimeException( 'The remote site has another operation in progress.' );
 		}
 		$job           = Planner::create( 'receive', array( 'backup' => ! empty( $args['backup'] ) ), $this->site, $this->schema );
 		$job['origin'] = preg_match( '/^[a-f0-9]{16}$/', (string) ( $args['session'] ?? '' ) ) ? (string) $args['session'] : $job['id'];
@@ -165,7 +165,7 @@ final class Server {
 	}
 
 	/**
-	 * Avanza el job de recepción (preflight, backup y, al final, el cambio de tablas).
+	 * Advances the receive job (preflight, backup and, at the end, the table swap).
 	 *
 	 * @param array $args id.
 	 */
@@ -187,12 +187,12 @@ final class Server {
 	}
 
 	/**
-	 * Ejecuta un trozo de sentencias sobre tablas _sft_. Los trozos van numerados: uno repetido
-	 * (un reintento tras un corte de red) se ignora, así nunca se insertan filas dos veces.
+	 * Runs a chunk of statements on _sft_ tables. Chunks are numbered: a repeated one
+	 * (a retry after a network drop) is ignored, so rows are never inserted twice.
 	 *
 	 * @param array $args id, seq, statements.
 	 *
-	 * @throws \RuntimeException Si el trozo está fuera de orden o trae algo no permitido.
+	 * @throws \RuntimeException If the chunk is out of order or carries something not allowed.
 	 */
 	private function push_chunk( array $args ): array {
 		$job  = $this->receive_job( $args );
@@ -202,15 +202,15 @@ final class Server {
 			return array( 'seq' => $last );
 		}
 		if ( $seq !== $last + 1 ) {
-			throw new \RuntimeException( "Trozo fuera de orden ($seq tras $last)." );
+			throw new \RuntimeException( "Chunk out of order ($seq after $last)." );
 		}
 		if ( 'receive' !== ( $job['steps'][ $job['index'] ]['type'] ?? null ) || ! Runner::is_open( $job ) ) {
-			throw new \RuntimeException( 'El sitio remoto no está esperando datos.' );
+			throw new \RuntimeException( 'The remote site is not waiting for data.' );
 		}
 		$statements = MemorySink::decode( (string) ( $args['statements'] ?? '' ) );
 		foreach ( $statements as $sql ) {
 			if ( ! Schema::safe_temp_statement( $sql ) ) {
-				throw new \RuntimeException( 'Sentencia no permitida en un push.' );
+				throw new \RuntimeException( 'Statement not allowed in a push.' );
 			}
 		}
 		$this->db->in_migration_session(
@@ -227,22 +227,22 @@ final class Server {
 	}
 
 	/**
-	 * Termina el envío: qué tablas cambiar y qué llaves foráneas recrear. El cambio lo hace
-	 * el siguiente push_step.
+	 * Finishes the transfer: which tables to swap and which foreign keys to recreate. The swap is done
+	 * by the next push_step.
 	 *
 	 * @param array $args id, swap, fks, ref_map, rows.
 	 *
-	 * @throws \RuntimeException Si los nombres no son válidos.
+	 * @throws \RuntimeException If the names are not valid.
 	 */
 	private function push_finish( array $args ): array {
 		$job    = $this->receive_job( $args );
 		$prefix = $this->site['prefix'];
 		$swap   = array();
-		// Solo tablas de este sitio, y cada una solo desde su propia tabla temporal.
+		// Only this site's tables, and each one only from its own temporary table.
 		foreach ( (array) ( $args['swap'] ?? array() ) as $tmp => $final ) {
 			$final = (string) $final;
 			if ( ! preg_match( '/^[A-Za-z0-9_$]{1,59}$/', $final ) || ! str_starts_with( $final, $prefix ) || Schema::TMP . $final !== (string) $tmp ) {
-				throw new \RuntimeException( 'Cambio de tablas inválido: ' . $final );
+				throw new \RuntimeException( 'Invalid table swap: ' . $final );
 			}
 			$swap[ $tmp ] = $final;
 		}
@@ -256,7 +256,7 @@ final class Server {
 		foreach ( (array) ( $args['fks'] ?? array() ) as $fk ) {
 			$clause = Schema::foreign_key( (string) ( $fk['clause'] ?? '' ), $ref_map, $prefix );
 			if ( null === $clause || ! in_array( $fk['table'] ?? null, $swap, true ) ) {
-				throw new \RuntimeException( 'Llave foránea inválida.' );
+				throw new \RuntimeException( 'Invalid foreign key.' );
 			}
 			$fks[] = array(
 				'table'  => (string) $fk['table'],
@@ -265,16 +265,16 @@ final class Server {
 		}
 		$job['swap']     = $swap;
 		$job['fks']      = $fks;
-		$job['ref_map']  = array(); // Las cláusulas ya apuntan a las tablas de este sitio.
+		$job['ref_map']  = array(); // The clauses already point to this site's tables.
 		$job['rows']     = (int) ( $args['rows'] ?? 0 );
 		$job['received'] = true;
-		Runner::log( $job, count( $swap ) . ' tablas recibidas.' );
+		Runner::log( $job, count( $swap ) . ' tables received.' );
 		( $this->save )( $job );
 		return array( 'ok' => true );
 	}
 
 	/**
-	 * Cancela la recepción y limpia.
+	 * Cancels the receive and cleans up.
 	 *
 	 * @param array $args id.
 	 */
@@ -288,36 +288,36 @@ final class Server {
 	}
 
 	/**
-	 * Job de recepción guardado, si coincide con el id.
+	 * Saved receive job, if it matches the id.
 	 *
 	 * @param array $args id.
 	 *
-	 * @throws \RuntimeException Si no existe.
+	 * @throws \RuntimeException If it does not exist.
 	 */
 	private function receive_job( array $args ): array {
 		$this->require( 'allow_push' );
 		$job = ( $this->load )();
 		if ( ! $job || 'receive' !== $job['intent'] || ( $args['id'] ?? null ) !== $job['id'] ) {
-			throw new \RuntimeException( 'La recepción ya no existe en el sitio remoto.' );
+			throw new \RuntimeException( 'The receive no longer exists on the remote site.' );
 		}
 		return $job;
 	}
 
 	/**
-	 * Exige un permiso de este sitio.
+	 * Requires a permission on this site.
 	 *
 	 * @param string $perm allow_pull | allow_push.
 	 *
-	 * @throws \RuntimeException Si no está activado.
+	 * @throws \RuntimeException If it is not enabled.
 	 */
 	private function require( string $perm ): void {
 		if ( empty( $this->perms[ $perm ] ) ) {
-			throw new \RuntimeException( 'allow_pull' === $perm ? 'El sitio remoto no permite pull.' : 'El sitio remoto no permite push.' );
+			throw new \RuntimeException( 'allow_pull' === $perm ? 'The remote site does not allow pull.' : 'The remote site does not allow push.' );
 		}
 	}
 
 	/**
-	 * Bytes que acepta este servidor en una petición (con margen).
+	 * Bytes this server accepts in one request (with margin).
 	 */
 	public static function max_request(): int {
 		$post = self::ini_bytes( (string) ini_get( 'post_max_size' ) );
@@ -328,7 +328,7 @@ final class Server {
 	/**
 	 * "8M" → bytes.
 	 *
-	 * @param string $value Valor de php.ini.
+	 * @param string $value php.ini value.
 	 */
 	private static function ini_bytes( string $value ): int {
 		$number = (int) $value;

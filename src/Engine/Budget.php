@@ -1,6 +1,6 @@
 <?php
 /**
- * Presupuesto de tiempo de un paso.
+ * Time budget for a step.
  *
  * @package Siteferry
  */
@@ -8,13 +8,13 @@
 namespace Siteferry\Engine;
 
 /**
- * Cuánto puede trabajar una petición antes de devolver el control: tiempo y, opcionalmente,
- * bytes producidos (para no pasar del tamaño de una petición o respuesta remota).
+ * How long a request may work before handing control back: time and, optionally,
+ * bytes produced (so as not to exceed the size of a remote request or response).
  */
 final class Budget {
 
 	/**
-	 * Momento límite (microtime).
+	 * Deadline (microtime).
 	 *
 	 * @var float
 	 */
@@ -23,30 +23,30 @@ final class Budget {
 	/**
 	 * Constructor.
 	 *
-	 * @param float $seconds Segundos disponibles (0 = una unidad de trabajo por llamada).
+	 * @param float $seconds Seconds available (0 = one unit of work per call).
 	 */
 	public function __construct( float $seconds ) {
 		$this->deadline = microtime( true ) + $seconds;
 	}
 
 	/**
-	 * Tope de bytes (0 = sin tope).
+	 * Byte cap (0 = no cap).
 	 *
 	 * @var int
 	 */
 	private int $max_bytes = 0;
 
 	/**
-	 * Bytes producidos.
+	 * Bytes produced.
 	 *
 	 * @var int
 	 */
 	private int $spent = 0;
 
 	/**
-	 * Mismo plazo, con un tope de bytes.
+	 * Same deadline, with a byte cap.
 	 *
-	 * @param int $bytes Tope.
+	 * @param int $bytes Cap.
 	 */
 	public function limited( int $bytes ): self {
 		$copy            = clone $this;
@@ -56,7 +56,7 @@ final class Budget {
 	}
 
 	/**
-	 * Registra bytes producidos.
+	 * Records bytes produced.
 	 *
 	 * @param int $bytes Bytes.
 	 */
@@ -65,7 +65,7 @@ final class Budget {
 	}
 
 	/**
-	 * Si ya se acabó el tiempo o se llegó al tope de bytes.
+	 * Whether time has run out or the byte cap has been reached.
 	 */
 	public function exhausted(): bool {
 		return microtime( true ) >= $this->deadline || ( $this->max_bytes && $this->spent >= $this->max_bytes );

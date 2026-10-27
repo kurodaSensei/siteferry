@@ -1,6 +1,6 @@
 <?php
 /**
- * Escribe las sentencias en un .sql.gz.
+ * Writes the statements to a .sql.gz file.
  *
  * @package Siteferry
  */
@@ -8,13 +8,13 @@
 namespace Siteferry\Engine;
 
 /**
- * Sink que agrega sentencias a un archivo gzip. Cada petición abre en modo "a":
- * el archivo queda con varios miembros gzip seguidos, que es gzip válido.
+ * Sink that appends statements to a gzip file. Each request opens it in "a" mode:
+ * the file ends up with several gzip members back to back, which is valid gzip.
  */
 final class FileSink implements Sink {
 
 	/**
-	 * Manejador gzip, abierto al primer uso.
+	 * Gzip handle, opened on first use.
 	 *
 	 * @var resource|null
 	 */
@@ -23,12 +23,12 @@ final class FileSink implements Sink {
 	/**
 	 * Constructor.
 	 *
-	 * @param string $path Ruta del .sql.gz.
+	 * @param string $path Path of the .sql.gz.
 	 */
 	public function __construct( private string $path ) {}
 
 	/**
-	 * Escribe una sentencia, una por línea.
+	 * Writes a statement, one per line.
 	 *
 	 * @param string $statement SQL.
 	 */
@@ -37,16 +37,16 @@ final class FileSink implements Sink {
 	}
 
 	/**
-	 * Escribe un comentario.
+	 * Writes a comment.
 	 *
-	 * @param string $text Texto de una línea.
+	 * @param string $text Single-line text.
 	 */
 	public function comment( string $text ): void {
 		$this->put( '-- ' . $text . "\n" );
 	}
 
 	/**
-	 * Cierra el archivo.
+	 * Closes the file.
 	 */
 	public function close(): void {
 		if ( $this->handle ) {
@@ -56,29 +56,29 @@ final class FileSink implements Sink {
 	}
 
 	/**
-	 * Cierra al destruirse.
+	 * Closes on destruction.
 	 */
 	public function __destruct() {
 		$this->close();
 	}
 
 	/**
-	 * Escribe texto crudo.
+	 * Writes raw text.
 	 *
-	 * @param string $data Texto.
+	 * @param string $data Text.
 	 *
-	 * @throws \RuntimeException Si no se puede escribir.
+	 * @throws \RuntimeException If it cannot be written.
 	 */
 	private function put( string $data ): void {
 		if ( ! $this->handle ) {
 			$handle = gzopen( $this->path, 'ab6' );
 			if ( ! $handle ) {
-				throw new \RuntimeException( 'No se puede escribir ' . $this->path );
+				throw new \RuntimeException( 'Cannot write ' . $this->path );
 			}
 			$this->handle = $handle;
 		}
 		if ( gzwrite( $this->handle, $data ) !== strlen( $data ) ) {
-			throw new \RuntimeException( 'Escritura incompleta en ' . $this->path . ' (¿disco lleno?)' );
+			throw new \RuntimeException( 'Incomplete write to ' . $this->path . ' (disk full?)' );
 		}
 	}
 }

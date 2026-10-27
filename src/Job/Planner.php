@@ -1,6 +1,6 @@
 <?php
 /**
- * Convierte una petición en un plan de pasos.
+ * Turns a request into a plan of steps.
  *
  * @package Siteferry
  */
@@ -12,26 +12,26 @@ use Siteferry\Files\Roots;
 use Siteferry\Files\SitePackage;
 
 /**
- * Crea el job (un array serializable) para exportar, reemplazar o importar.
+ * Creates the job (a serializable array) to export, replace or import.
  */
 final class Planner {
 
 	public const INTENTS = array( 'export', 'replace', 'import', 'pull', 'push', 'receive', 'undo' );
 
 	/**
-	 * Crea un job.
+	 * Creates a job.
 	 *
-	 * @param string $intent export | replace | import | pull | push | receive (lado remoto de un push).
+	 * @param string $intent export | replace | import | pull | push | receive (remote side of a push).
 	 * @param array  $input  tables, pairs, case_sensitive, regex, replace_guids, backup, auto_url, file, file_owned,
-	 *                       source_prefix; para pull/push también remote (url, key, verify_ssl) y remote_info (hello).
+	 *                       source_prefix; for pull/push also remote (url, key, verify_ssl) and remote_info (hello).
 	 * @param array  $site   prefix, home, siteurl, storage, host, plugin, multisite, options_table, preserve.
-	 * @param Schema $schema Estructura de la BD.
+	 * @param Schema $schema Database structure.
 	 *
-	 * @throws \InvalidArgumentException Si la petición no es válida.
+	 * @throws \InvalidArgumentException If the request is invalid.
 	 */
 	public static function create( string $intent, array $input, array $site, Schema $schema ): array {
 		if ( ! in_array( $intent, self::INTENTS, true ) ) {
-			throw new \InvalidArgumentException( 'Acción desconocida.' );
+			throw new \InvalidArgumentException( 'Unknown action.' );
 		}
 		$pairs = array();
 		foreach ( (array) ( $input['pairs'] ?? array() ) as $pair ) {
@@ -41,7 +41,7 @@ final class Planner {
 			}
 		}
 		if ( 'replace' === $intent && ! $pairs ) {
-			throw new \InvalidArgumentException( 'Indica al menos un texto a buscar.' );
+			throw new \InvalidArgumentException( 'Enter at least one text to search for.' );
 		}
 
 		$all    = $schema->stats( $site['prefix'] );
@@ -67,7 +67,7 @@ final class Planner {
 				'delete_files'   => ! empty( $input['delete_files'] ),
 				'database'       => ! array_key_exists( 'database', $input ) || ! empty( $input['database'] ),
 			),
-			'steps'       => array( self::step( 'preflight', 'Comprobaciones' ) ),
+			'steps'       => array( self::step( 'preflight', 'Preflight checks' ) ),
 			'index'       => 0,
 			'cursor'      => null,
 			'step_rows'   => 0,
@@ -101,20 +101,20 @@ final class Planner {
 				self::add_dump( $job, 'export', $tables, $all, true );
 				return $job;
 			}
-			// Sitio completo: dump temporal + carpetas, todo en un paquete .sfy.
+			// Full site: temporary dump + folders, all in one .sfy package.
 			$job['files']['dump']   = $name( '-db' );
 			$job['files']['export'] = substr( $name( '' ), 0, -strlen( '.sql.gz' ) ) . '.sfy';
 			array_push( $job['owned'], 'dump', 'export' );
 			self::add_dump( $job, 'dump', $tables, $all, true );
-			$job['steps'][] = self::step( 'site_start', 'Paquete: inicio' ) + array( 'roots' => $roots );
-			$job['steps'][] = self::step( 'site_db', 'Paquete: base de datos' );
+			$job['steps'][] = self::step( 'site_start', 'Package: start' ) + array( 'roots' => $roots );
+			$job['steps'][] = self::step( 'site_db', 'Package: database' );
 			foreach ( $roots as $root ) {
-				$job['steps'][]             = self::step( 'files_scan', "Paquete ($root): escaneo" ) + array(
+				$job['steps'][]             = self::step( 'files_scan', "Package ($root): scan" ) + array(
 					'root' => $root,
 					'side' => 'local',
 					'out'  => 'send',
 				);
-				$job['steps'][]             = self::step( 'site_files', "Paquete ($root): archivos" ) + array( 'root' => $root );
+				$job['steps'][]             = self::step( 'site_files', "Package ($root): files" ) + array( 'root' => $root );
 				$job['file_stats'][ $root ] = array(
 					'send'    => 0,
 					'bytes'   => 0,
@@ -124,7 +124,7 @@ final class Planner {
 					'missing' => 0,
 				);
 			}
-			$job['steps'][] = self::step( 'cleanup', 'Limpieza' ); // El dump suelto ya está dentro del paquete.
+			$job['steps'][] = self::step( 'cleanup', 'Cleanup' ); // The loose dump is already inside the package.
 			return $job;
 		}
 
@@ -132,7 +132,7 @@ final class Planner {
 			self::prepare_remote( $job, $intent, $input );
 		}
 
-		// En un push el backup lo hace el sitio remoto (su job "receive"); un pull de solo archivos no toca la BD.
+		// In a push the backup is made by the remote site (its "receive" job); a files-only pull does not touch the database.
 		if ( $job['options']['backup'] && 'push' !== $intent && ( 'pull' !== $intent || $job['options']['database'] ) ) {
 			$job['files']['backup'] = $name( '-backup' );
 			$job['owned'][]         = 'backup';
@@ -144,18 +144,18 @@ final class Planner {
 				$job['steps'][]                      = self::copy( $table, Schema::TMP . $table, $table, 'table', $all[ $table ]['rows'], $table );
 				$job['swap'][ Schema::TMP . $table ] = $table;
 			}
-			$job['steps'][] = self::step( 'finalize', 'Cambio de tablas' );
+			$job['steps'][] = self::step( 'finalize', 'Swap tables' );
 			return $job;
 		}
 
 		if ( 'receive' === $intent ) {
-			$job['steps'][] = self::step( 'receive', 'Recibiendo datos' );
-			$job['steps'][] = self::step( 'finalize', 'Cambio de tablas' );
+			$job['steps'][] = self::step( 'receive', 'Receiving data' );
+			$job['steps'][] = self::step( 'finalize', 'Swap tables' );
 			return $job;
 		}
 
-		// Orden: archivos a su lugar (media) o a la zona temporal (código) → BD → cambio de BD → borrados y cambio
-		// de carpetas de código. El sitio solo cambia de verdad al final.
+		// Order: files to their place (media) or to the staging area (code) → DB → DB swap → deletions and swap
+		// of code folders. The site only really changes at the end.
 		if ( 'pull' === $intent ) {
 			self::add_file_transfer( $job, 'pull' );
 			if ( $job['options']['database'] ) {
@@ -166,7 +166,7 @@ final class Planner {
 					$job['swap'][ Schema::TMP . $final ] = $final;
 					$job['ref_map'][ $table ]            = $final;
 				}
-				$job['steps'][] = self::step( 'finalize', 'Cambio de tablas' );
+				$job['steps'][] = self::step( 'finalize', 'Swap tables' );
 			}
 			self::add_file_finalize( $job );
 			return $job;
@@ -175,28 +175,28 @@ final class Planner {
 		if ( 'push' === $intent ) {
 			self::add_file_transfer( $job, 'push' );
 			if ( $job['options']['database'] ) {
-				$job['steps'][] = self::step( 'push_begin', 'Conexión con el sitio remoto' );
-				$job['steps'][] = self::step( 'remote_wait', 'Preparación en el sitio remoto' ) + array( 'until' => 'ready' );
+				$job['steps'][] = self::step( 'push_begin', 'Connecting to the remote site' );
+				$job['steps'][] = self::step( 'remote_wait', 'Preparing the remote site' ) + array( 'until' => 'ready' );
 				foreach ( $tables as $table ) {
 					$final                               = $job['prefix_to'] . substr( $table, strlen( $job['prefix_from'] ) );
 					$job['steps'][]                      = self::copy( $table, Schema::TMP . $final, $table, 'remote', $all[ $table ]['rows'], $final );
 					$job['swap'][ Schema::TMP . $final ] = $final;
 					$job['ref_map'][ $table ]            = $final;
 				}
-				$job['steps'][] = self::step( 'push_finish', 'Envío terminado' );
-				$job['steps'][] = self::step( 'remote_wait', 'Cambio de tablas en el sitio remoto' ) + array( 'until' => 'done' );
+				$job['steps'][] = self::step( 'push_finish', 'Send complete' );
+				$job['steps'][] = self::step( 'remote_wait', 'Swap tables on the remote site' ) + array( 'until' => 'done' );
 			}
 			self::add_file_finalize( $job );
 			return $job;
 		}
 
 		if ( 'undo' === $intent ) {
-			// Deshacer: primero los archivos (desde la sesión) y luego la BD (importando su backup).
+			// Undo: files first (from the session), then the database (importing its backup).
 			$storage = $site['storage'] . '/';
 			$dir     = (string) ( $input['files_dir'] ?? '' );
 			if ( '' !== $dir && str_starts_with( $dir, $storage . 'files-' ) && is_dir( $dir ) ) {
 				foreach ( array_intersect( Roots::ALL, (array) ( $input['roots'] ?? array() ) ) as $root ) {
-					$job['steps'][] = self::step( 'files_undo', "Archivos ($root): deshacer" ) + array(
+					$job['steps'][] = self::step( 'files_undo', "Files ($root): undo" ) + array(
 						'root' => $root,
 						'dir'  => $dir,
 					);
@@ -207,7 +207,7 @@ final class Planner {
 				self::add_import( $job, $backup, false );
 			}
 			if ( 1 === count( $job['steps'] ) ) {
-				throw new \InvalidArgumentException( 'No hay nada que deshacer.' );
+				throw new \InvalidArgumentException( 'There is nothing to undo.' );
 			}
 			return $job;
 		}
@@ -215,14 +215,14 @@ final class Planner {
 		// Importar.
 		$file = (string) ( $input['file'] ?? '' );
 		if ( '' === $file ) {
-			throw new \InvalidArgumentException( 'Falta el archivo a importar.' );
+			throw new \InvalidArgumentException( 'The file to import is missing.' );
 		}
 		if ( ! str_ends_with( strtolower( $file ), '.sfy' ) ) {
 			self::add_import( $job, $file, ! empty( $input['file_owned'] ) );
 			return $job;
 		}
-		// Paquete de sitio: se desempaca (archivos a su lugar o a la zona temporal, dump aparte), se importa la BD
-		// y al final se cambian las carpetas de código.
+		// Site package: it is unpacked (files to their place or to the staging area, dump separately), the DB is imported
+		// and finally the code folders are swapped.
 		try {
 			$meta = SitePackage::meta( $file );
 		} catch ( \RuntimeException $e ) {
@@ -246,20 +246,20 @@ final class Planner {
 				'missing' => 0,
 			);
 		}
-		$job['steps'][] = self::step( 'site_unpack', 'Paquete: desempacar' ) + array( 'est' => intdiv( (int) filesize( $file ), 65536 ) + 1 );
-		$job['steps'][] = self::step( 'decompress', 'Descomprimir la base de datos' );
-		$job['steps'][] = self::step( 'import', 'Cargar la base de datos' );
-		$job['steps'][] = self::step( 'plan_import', 'Preparar las tablas' );
+		$job['steps'][] = self::step( 'site_unpack', 'Package: unpack' ) + array( 'est' => intdiv( (int) filesize( $file ), 65536 ) + 1 );
+		$job['steps'][] = self::step( 'decompress', 'Decompress the database' );
+		$job['steps'][] = self::step( 'import', 'Load the database' );
+		$job['steps'][] = self::step( 'plan_import', 'Prepare the tables' );
 		self::add_file_finalize( $job );
 		return $job;
 	}
 
 	/**
-	 * Pasos para cargar un .sql / .sql.gz en tablas crudas y planear el resto.
+	 * Steps to load a .sql / .sql.gz into raw tables and plan the rest.
 	 *
 	 * @param array  $job   Job.
-	 * @param string $file  Archivo.
-	 * @param bool   $owned Si el archivo es del plugin (se borra al terminar).
+	 * @param string $file  File.
+	 * @param bool   $owned Whether the file belongs to the plugin (deleted when finished).
 	 */
 	private static function add_import( array &$job, string $file, bool $owned ): void {
 		$job['files']['import'] = $file;
@@ -267,30 +267,30 @@ final class Planner {
 			$job['owned'][] = 'import';
 		}
 		if ( str_ends_with( strtolower( $file ), '.gz' ) ) {
-			$job['steps'][] = self::step( 'decompress', 'Descomprimir el archivo' );
+			$job['steps'][] = self::step( 'decompress', 'Decompress the file' );
 		}
-		$import         = self::step( 'import', 'Cargar el archivo' );
+		$import         = self::step( 'import', 'Load the file' );
 		$import['est']  = is_file( $file ) && ! str_ends_with( strtolower( $file ), '.gz' ) ? intdiv( (int) filesize( $file ), 200 ) : 1;
 		$job['steps'][] = $import;
-		$job['steps'][] = self::step( 'plan_import', 'Preparar las tablas' );
+		$job['steps'][] = self::step( 'plan_import', 'Prepare the tables' );
 	}
 
 	/**
-	 * Pull/push: conexión, permisos del otro sitio, prefijos y pares de URL automáticos.
+	 * Pull/push: connection, the other site's permissions, prefixes and automatic URL pairs.
 	 *
 	 * @param array  $job    Job.
 	 * @param string $intent pull | push.
-	 * @param array  $input  Petición (remote, remote_info).
+	 * @param array  $input  Request (remote, remote_info).
 	 *
-	 * @throws \InvalidArgumentException Si el otro sitio no lo permite o no es compatible.
+	 * @throws \InvalidArgumentException If the other site does not allow it or is not compatible.
 	 */
 	private static function prepare_remote( array &$job, string $intent, array $input ): void {
 		$info = (array) ( $input['remote_info'] ?? array() );
 		if ( empty( $info[ 'allow_' . $intent ] ) ) {
-			throw new \InvalidArgumentException( 'pull' === $intent ? 'El sitio remoto no permite pull. Actívalo en su Siteferry.' : 'El sitio remoto no permite push. Actívalo en su Siteferry.' );
+			throw new \InvalidArgumentException( 'pull' === $intent ? 'The remote site does not allow pull. Enable it in its Siteferry.' : 'The remote site does not allow push. Enable it in its Siteferry.' );
 		}
 		if ( ! empty( $info['multisite'] ) ) {
-			throw new \InvalidArgumentException( 'El sitio remoto es multisite; todavía no está soportado.' );
+			throw new \InvalidArgumentException( 'The remote site is multisite; that is not supported yet.' );
 		}
 		$here = $job['site'];
 		$from = 'pull' === $intent ? $info : $here;
@@ -298,17 +298,17 @@ final class Planner {
 
 		$files = $job['options']['files'];
 		if ( ! $files && ! $job['options']['database'] ) {
-			throw new \InvalidArgumentException( 'Elige la base de datos, archivos o ambos.' );
+			throw new \InvalidArgumentException( 'Choose the database, files, or both.' );
 		}
 		foreach ( $files as $root ) {
 			if ( ! isset( $here['roots'][ $root ] ) || ! in_array( $root, (array) ( $info['roots'] ?? array() ), true ) ) {
-				throw new \InvalidArgumentException( "La carpeta $root no está disponible en los dos sitios." );
+				throw new \InvalidArgumentException( "The $root folder is not available on both sites." );
 			}
 			if ( 'pull' === $intent && empty( $info['allow_pull_files'] ) ) {
-				throw new \InvalidArgumentException( 'El sitio remoto no permite pull de archivos. Actívalo en su Siteferry.' );
+				throw new \InvalidArgumentException( 'The remote site does not allow file pulls. Enable it in its Siteferry.' );
 			}
 			if ( 'push' === $intent && Roots::is_code( $root ) && empty( $info['allow_push_code'] ) ) {
-				throw new \InvalidArgumentException( 'El sitio remoto no permite push de código (temas y plugins). Actívalo en su Siteferry.' );
+				throw new \InvalidArgumentException( 'The remote site does not allow code pushes (themes and plugins). Enable it in its Siteferry.' );
 			}
 		}
 
@@ -319,7 +319,7 @@ final class Planner {
 			'key'        => (string) $input['remote']['key'],
 			'verify_ssl' => ! empty( $input['remote']['verify_ssl'] ),
 			'home'       => (string) $info['home'],
-			// Trozos de push: el SQL viaja comprimido y en base64 dentro del límite del otro servidor.
+			// Push chunks: the SQL travels compressed and base64-encoded, within the other server's limit.
 			'chunk'      => max( 256 * 1024, min( 4 * 1024 * 1024, (int) ( (int) $info['max_request'] / 1.5 ) ) ),
 		);
 
@@ -341,7 +341,7 @@ final class Planner {
 	}
 
 	/**
-	 * Pasos de archivos hasta dejarlos en su lugar (media) o en la zona temporal (código).
+	 * File steps up to placing them in their place (media) or in the staging area (code).
 	 *
 	 * @param array  $job    Job.
 	 * @param string $intent pull | push.
@@ -350,37 +350,37 @@ final class Planner {
 		$source = 'pull' === $intent ? 'remote' : 'local';
 		$target = 'pull' === $intent ? 'local' : 'remote';
 		foreach ( $job['options']['files'] as $root ) {
-			$job['steps'][] = self::step( 'files_scan', "Archivos ($root): origen" ) + array(
+			$job['steps'][] = self::step( 'files_scan', "Files ($root): source" ) + array(
 				'root' => $root,
 				'side' => $source,
 				'out'  => 'source',
 			);
-			$job['steps'][] = self::step( 'files_scan', "Archivos ($root): destino" ) + array(
+			$job['steps'][] = self::step( 'files_scan', "Files ($root): destination" ) + array(
 				'root' => $root,
 				'side' => $target,
 				'out'  => 'target',
 			);
-			$job['steps'][] = self::step( 'files_diff', "Archivos ($root): comparación" ) + array( 'root' => $root );
-			$job['steps'][] = self::step( 'files_transfer', "Archivos ($root): envío" ) + array( 'root' => $root );
+			$job['steps'][] = self::step( 'files_diff', "Files ($root): compare" ) + array( 'root' => $root );
+			$job['steps'][] = self::step( 'files_transfer', "Files ($root): transfer" ) + array( 'root' => $root );
 		}
 	}
 
 	/**
-	 * Pasos finales de archivos: borrados y cambio de carpetas de código.
+	 * Final file steps: deletions and swap of code folders.
 	 *
 	 * @param array $job Job.
 	 */
 	private static function add_file_finalize( array &$job ): void {
 		foreach ( $job['options']['files'] as $root ) {
-			$job['steps'][] = self::step( 'files_finalize', "Archivos ($root): cierre" ) + array( 'root' => $root );
+			$job['steps'][] = self::step( 'files_finalize', "Files ($root): finalize" ) + array( 'root' => $root );
 		}
 	}
 
 	/**
-	 * Tablas elegidas de una lista (todas si no se eligió ninguna).
+	 * Selected tables from a list (all of them if none was selected).
 	 *
-	 * @param array $available Estadísticas por tabla.
-	 * @param array $input     Petición (tables).
+	 * @param array $available Per-table stats.
+	 * @param array $input     Request (tables).
 	 * @return string[]
 	 */
 	private static function selected( array $available, array $input ): array {
@@ -389,17 +389,17 @@ final class Planner {
 	}
 
 	/**
-	 * Agrega los pasos de un volcado a archivo.
+	 * Adds the steps of a dump to a file.
 	 *
 	 * @param array    $job     Job.
-	 * @param string   $file    Clave del archivo (export | backup).
-	 * @param string[] $tables  Tablas.
-	 * @param array    $all     Estadísticas por tabla.
-	 * @param bool     $replace Aplicar reemplazos.
+	 * @param string   $file    File key (export | backup).
+	 * @param string[] $tables  Tables.
+	 * @param array    $all     Per-table stats.
+	 * @param bool     $replace Apply replacements.
 	 */
 	private static function add_dump( array &$job, string $file, array $tables, array $all, bool $replace ): void {
-		$label          = 'backup' === $file ? 'Backup' : 'Exportación';
-		$job['steps'][] = self::step( 'header', $label . ': inicio' ) + array( 'file' => $file );
+		$label          = 'backup' === $file ? 'Backup' : 'Export';
+		$job['steps'][] = self::step( 'header', $label . ': start' ) + array( 'file' => $file );
 		foreach ( $tables as $table ) {
 			$step            = self::copy( $table, $table, $table, 'file', $all[ $table ]['rows'], $table );
 			$step['file']    = $file;
@@ -407,14 +407,14 @@ final class Planner {
 			$step['replace'] = $replace;
 			$job['steps'][]  = $step;
 		}
-		$job['steps'][] = self::step( 'footer', $label . ': cierre' ) + array( 'file' => $file );
+		$job['steps'][] = self::step( 'footer', $label . ': finish' ) + array( 'file' => $file );
 	}
 
 	/**
-	 * Paso genérico.
+	 * Generic step.
 	 *
-	 * @param string $type  Tipo.
-	 * @param string $label Texto para la interfaz.
+	 * @param string $type  Type.
+	 * @param string $label UI text.
 	 */
 	public static function step( string $type, string $label ): array {
 		return array(
@@ -425,14 +425,14 @@ final class Planner {
 	}
 
 	/**
-	 * Paso de copia de una tabla.
+	 * Table copy step.
 	 *
-	 * @param string $source  Tabla de origen.
-	 * @param string $target  Tabla destino.
-	 * @param string $logical Nombre en el sitio de origen.
+	 * @param string $source  Source table.
+	 * @param string $target  Destination table.
+	 * @param string $logical Name on the source site.
 	 * @param string $sink    file | table.
-	 * @param int    $rows    Filas estimadas.
-	 * @param string $final_name Nombre final de la tabla.
+	 * @param int    $rows    Estimated rows.
+	 * @param string $final_name Final table name.
 	 */
 	public static function copy( string $source, string $target, string $logical, string $sink, int $rows, string $final_name ): array {
 		return array(

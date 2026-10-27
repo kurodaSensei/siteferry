@@ -1,6 +1,6 @@
 <?php
 /**
- * Qué archivos hay que enviar o borrar.
+ * Which files need to be sent or deleted.
  *
  * @package Siteferry
  */
@@ -8,23 +8,23 @@
 namespace Siteferry\Files;
 
 /**
- * Compara el manifiesto del origen con el del destino.
+ * Compares the source manifest with the destination manifest.
  */
 final class Diff {
 
 	/**
-	 * Escribe en $send lo nuevo o distinto (tamaño o md5) y, si se pasa $delete, lo que el
-	 * destino tiene y el origen no.
+	 * Writes to $send whatever is new or different (size or md5) and, if $delete is passed, whatever the
+	 * destination has and the source does not.
 	 *
-	 * @param Manifest      $source Origen.
-	 * @param Manifest      $target Destino.
-	 * @param Manifest      $send   Salida: archivos a enviar.
-	 * @param Manifest|null $delete Salida: archivos a borrar en el destino.
+	 * @param Manifest      $source Source.
+	 * @param Manifest      $target Destination.
+	 * @param Manifest      $send   Output: files to send.
+	 * @param Manifest|null $delete Output: files to delete on the destination.
 	 * @return array{send: int, bytes: int, delete: int}
 	 */
 	public static function compute( Manifest $source, Manifest $target, Manifest $send, ?Manifest $delete = null ): array {
-		// ponytail: el manifiesto del destino se carga entero en memoria (≈100 bytes por archivo); con millones
-		// de archivos convendría ordenar ambos y compararlos en una pasada.
+		// ponytail: the destination manifest is loaded entirely into memory (≈100 bytes per file); with millions
+		// of files it would be better to sort both and compare them in a single pass.
 		$have = array();
 		foreach ( $target->entries() as [ $file, $size, $md5 ] ) {
 			$have[ $file ] = array( $size, $md5 );

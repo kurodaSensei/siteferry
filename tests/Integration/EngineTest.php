@@ -1,6 +1,6 @@
 <?php
 /**
- * Pruebas del motor SQL.
+ * Tests for the SQL engine.
  *
  * @package Siteferry
  */
@@ -38,7 +38,7 @@ CREATE TABLE t_binpk (k VARBINARY(16) NOT NULL, v TEXT, PRIMARY KEY (k))
 SQL;
 
 	private function seed( Db $db ): void {
-		// Fechas 0000-00-00 como las de los borradores de WordPress: solo entran sin modo estricto.
+		// 0000-00-00 dates like those of WordPress drafts: they only go in without strict mode.
 		$db->in_migration_session( fn() => $this->seed_rows( $db ) );
 	}
 
@@ -61,7 +61,7 @@ SQL;
 	}
 
 	/**
-	 * Copia una tabla llamando una y otra vez con presupuesto 0 (una fila por llamada).
+	 * Copies a table by calling repeatedly with a budget of 0 (one row per call).
 	 */
 	private function copy_all( TableCopier $copier, string $source, string $target, $sink, array &$fks = array() ): int {
 		$cursor = null;
@@ -84,7 +84,7 @@ SQL;
 			function () use ( $copier, $db ) {
 				foreach ( array( 't_mix', 't_comp', 't_nopk', 't_binpk' ) as $table ) {
 					$calls = $this->copy_all( $copier, $table, Schema::TMP . $table, new TableSink( $db ) );
-					$this->assertGreaterThan( 5, $calls, "$table debe copiarse en varios tramos" );
+					$this->assertGreaterThan( 5, $calls, "$table must be copied in several chunks" );
 				}
 			}
 		);
@@ -113,8 +113,8 @@ SQL;
 		);
 
 		$plain = $this->storage . '/dump.sql';
-		file_put_contents( $plain, implode( '', gzfile( $file ) ) ); // gzfile lee todos los miembros gzip.
-		$this->assertStringNotContainsString( "línea 1\nlínea", file_get_contents( $plain ), 'Ningún valor debe ocupar varias líneas' );
+		file_put_contents( $plain, implode( '', gzfile( $file ) ) ); // gzfile reads every gzip member.
+		$this->assertStringNotContainsString( "línea 1\nlínea", file_get_contents( $plain ), 'No value may span several lines' );
 
 		$target->in_migration_session(
 			function () use ( $plain, $target ) {
@@ -166,6 +166,6 @@ SQL;
 			$db->value( "SELECT REFERENCED_TABLE_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'c' AND REFERENCED_TABLE_NAME IS NOT NULL" )
 		);
 		$db->query( 'DELETE FROM p WHERE id = 1' );
-		$this->assertSame( '1', $db->value( 'SELECT COUNT(*) FROM c' ), 'ON DELETE CASCADE sigue activo' );
+		$this->assertSame( '1', $db->value( 'SELECT COUNT(*) FROM c' ), 'ON DELETE CASCADE is still active' );
 	}
 }

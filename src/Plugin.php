@@ -1,6 +1,6 @@
 <?php
 /**
- * Arranque del plugin.
+ * Plugin bootstrap.
  *
  * @package Siteferry
  */
@@ -25,16 +25,18 @@ use Siteferry\Support\Storage;
 use Siteferry\Support\UndoPoint;
 
 /**
- * Registra hooks y concentra lo que comparten la REST y WP-CLI.
+ * Registers hooks and holds what the REST API and WP-CLI share.
  */
 final class Plugin {
 
 	private const COMPAT_FILE = 'siteferry-compat.php';
 
 	/**
-	 * Registra hooks.
+	 * Registers hooks.
 	 */
 	public static function boot(): void {
+		// Bundled translations; translate.wordpress.org files in wp-content/languages take precedence.
+		add_action( 'init', static fn() => load_plugin_textdomain( 'siteferry', false, dirname( plugin_basename( SITEFERRY_FILE ) ) . '/languages' ) );
 		add_action( 'rest_api_init', array( RestController::class, 'register' ) );
 		add_action( 'rest_api_init', array( RemoteController::class, 'register' ) );
 		add_action( 'admin_menu', array( Page::class, 'register' ) );
@@ -45,7 +47,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Activación: claves, mu-plugin de compatibilidad y limpieza diaria.
+	 * Activation: keys, compatibility mu-plugin and daily cleanup.
 	 */
 	public static function activate(): void {
 		if ( ! get_option( 'siteferry_compat_key' ) ) {
@@ -58,7 +60,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Desactivación: quita el mu-plugin y el cron.
+	 * Deactivation: removes the mu-plugin and the cron event.
 	 */
 	public static function deactivate(): void {
 		$target = WPMU_PLUGIN_DIR . '/' . self::COMPAT_FILE;
@@ -69,7 +71,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Copia (o actualiza) el mu-plugin que apaga otros plugins y el tema durante los pasos.
+	 * Copies (or updates) the mu-plugin that switches off other plugins and the theme during steps.
 	 */
 	public static function install_compat(): void {
 		$source = SITEFERRY_PATH . 'mu-plugin/' . self::COMPAT_FILE;
@@ -83,7 +85,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Conexión del motor (la misma de $wpdb).
+	 * Engine connection (the same one $wpdb uses).
 	 */
 	public static function db(): Db {
 		global $wpdb;
@@ -91,7 +93,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Datos de este sitio que necesita el Planner.
+	 * This site's data that the Planner needs.
 	 */
 	public static function site(): array {
 		global $wpdb;
@@ -100,7 +102,7 @@ final class Plugin {
 			'home'          => home_url(),
 			'siteurl'       => site_url(),
 			'storage'       => Storage::dir(),
-			'host'          => sanitize_file_name( (string) ( wp_parse_url( home_url(), PHP_URL_HOST ) ?? 'sitio' ) ),
+			'host'          => sanitize_file_name( (string) ( wp_parse_url( home_url(), PHP_URL_HOST ) ?? 'site' ) ),
 			'plugin'        => plugin_basename( SITEFERRY_FILE ),
 			'multisite'     => is_multisite(),
 			'options_table' => $wpdb->options,
@@ -119,24 +121,24 @@ final class Plugin {
 	}
 
 	/**
-	 * Crea y guarda un job.
+	 * Creates and stores a job.
 	 *
 	 * @param string $intent export | replace | import | pull | push.
 	 * @param array  $input  Opciones (ver Planner::create); pull/push llevan `connection` ("URL CLAVE").
 	 *
-	 * @throws \RuntimeException Si hay otro job en curso o el sitio remoto no responde.
-	 * @throws \InvalidArgumentException Si la petición no es válida.
+	 * @throws \RuntimeException If another job is in progress or the remote site does not respond.
+	 * @throws \InvalidArgumentException If the request is invalid.
 	 */
 	public static function create_job( string $intent, array $input ): array {
 		if ( JobStore::busy() ) {
-			throw new \RuntimeException( __( 'Ya hay una operación en curso.', 'siteferry' ) );
+			throw new \RuntimeException( __( 'Another operation is already in progress.', 'siteferry' ) );
 		}
 		if ( 'receive' === $intent ) {
-			throw new \InvalidArgumentException( 'Acción desconocida.' );
+			throw new \InvalidArgumentException( __( 'Unknown action.', 'siteferry' ) );
 		}
 		if ( 'undo' === $intent ) {
-			// Solo el punto guardado: nunca rutas que lleguen en la petición.
-			$input = UndoPoint::get() ?? throw new \InvalidArgumentException( __( 'No hay nada que deshacer.', 'siteferry' ) );
+			// Only the stored point: never paths that arrive in the request.
+			$input = UndoPoint::get() ?? throw new \InvalidArgumentException( __( 'There is nothing to undo.', 'siteferry' ) );
 		}
 		if ( 'pull' === $intent || 'push' === $intent ) {
 			$input['remote']      = Signer::parse_connection( (string) ( $input['connection'] ?? '' ) ) + array( 'verify_ssl' => Settings::get()['verify_ssl'] );
@@ -149,29 +151,30 @@ final class Plugin {
 	}
 
 	/**
-	 * Saluda al otro sitio y comprueba que hable el mismo protocolo.
+	 * Greets the other site and checks that it speaks the same protocol.
 	 *
 	 * @param array $remote url, key, verify_ssl.
 	 *
-	 * @throws \RuntimeException Si no responde o no es compatible.
+	 * @throws \RuntimeException If it does not respond or is not compatible.
 	 */
 	public static function hello( array $remote ): array {
 		$info = ( new Client( $remote['url'], $remote['key'], $remote['verify_ssl'] ) )->call( 'hello' );
 		if ( Server::PROTOCOL !== (int) ( $info['protocol'] ?? 0 ) ) {
-			throw new \RuntimeException( 'El sitio remoto usa otra versión de Siteferry (' . ( $info['version'] ?? '?' ) . '). Actualiza ambos.' );
+			/* translators: %s: Siteferry version on the remote site */
+			throw new \RuntimeException( sprintf( __( 'The remote site runs a different Siteferry version (%s). Update both.', 'siteferry' ), $info['version'] ?? '?' ) );
 		}
 		return $info;
 	}
 
 	/**
-	 * Runner con acceso al sitio remoto del job (pull/push).
+	 * Runner with access to the job's remote site (pull/push).
 	 */
 	public static function runner(): Runner {
 		return new Runner( self::db(), static fn( array $job, string $op, array $args, ?string $binary = null ) => Client::for_job( $job )->call( $op, $args, $binary ) );
 	}
 
 	/**
-	 * Avanza el job y lo guarda.
+	 * Advances the job and stores it.
 	 *
 	 * @param array $job     Job.
 	 * @param float $seconds Presupuesto.
@@ -179,7 +182,7 @@ final class Plugin {
 	public static function run_step( array $job, float $seconds ): array {
 		$job = self::runner()->step( $job, new Budget( $seconds ) );
 		if ( 'done' === $job['status'] && 'export' !== $job['intent'] ) {
-			wp_cache_flush(); // Las tablas cambiaron por debajo de la caché de objetos.
+			wp_cache_flush(); // The tables changed underneath the object cache.
 		}
 		JobStore::save( $job );
 		if ( 'done' === $job['status'] ) {
@@ -196,7 +199,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Segundos de trabajo por petición web.
+	 * Seconds of work per web request.
 	 */
 	public static function step_seconds(): float {
 		if ( function_exists( 'set_time_limit' ) ) {
@@ -207,7 +210,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Limpieza diaria: archivos viejos y jobs abandonados.
+	 * Daily cleanup: old files and abandoned jobs.
 	 */
 	public static function cleanup(): void {
 		Storage::cleanup();
@@ -218,7 +221,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Datos del job que ve la interfaz.
+	 * Job data the UI sees.
 	 *
 	 * @param array|null $job Job.
 	 */
@@ -253,7 +256,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Si el backup ya está completo (pasó su paso de cierre).
+	 * Whether the backup is complete (its closing step has run).
 	 *
 	 * @param array $job Job.
 	 */

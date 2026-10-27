@@ -1,6 +1,6 @@
 {
 	"name": "kurodasensei/siteferry",
-	"description": "Siteferry: migraciones de base de datos para WordPress.",
+	"description": "WordPress migrations: serialized-safe search-replace, export, import, and signed pull/push of databases and files.",
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"authors": [

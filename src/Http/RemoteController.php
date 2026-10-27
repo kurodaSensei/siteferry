@@ -1,6 +1,6 @@
 <?php
 /**
- * Endpoint que atiende a otros sitios.
+ * Endpoint that serves other sites.
  *
  * @package Siteferry
  */
@@ -15,13 +15,13 @@ use Siteferry\Support\Settings;
 use Siteferry\Support\UndoPoint;
 
 /**
- * POST siteferry/v1/remote. No usa sesión de WordPress: se autentica con la firma
- * HMAC del cuerpo, el reloj (±5 min) y un nonce de un solo uso. Las respuestas también van firmadas.
+ * POST siteferry/v1/remote. No WordPress session: requests authenticate with an HMAC signature
+ * of the body, the clock (±5 min) and a single-use nonce. Responses are signed too.
  */
 final class RemoteController {
 
 	/**
-	 * Registra la ruta.
+	 * Registers the route.
 	 */
 	public static function register(): void {
 		register_rest_route(
@@ -30,15 +30,15 @@ final class RemoteController {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( self::class, 'handle' ),
-				'permission_callback' => '__return_true', // La autenticación es la firma (ver handle).
+				'permission_callback' => '__return_true', // Authentication is the signature (see handle).
 			)
 		);
 	}
 
 	/**
-	 * Atiende una petición firmada.
+	 * Handles a signed request.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function handle( \WP_REST_Request $request ): void {
 		$key               = Settings::key();
@@ -48,7 +48,7 @@ final class RemoteController {
 				array(
 					'ok'    => false,
 					'code'  => 'siteferry_signature',
-					'error' => 'Firma inválida.',
+					'error' => 'Invalid signature.',
 				),
 				401,
 				$key
@@ -61,7 +61,7 @@ final class RemoteController {
 			self::respond(
 				array(
 					'ok'    => false,
-					'error' => 'Petición mal formada.',
+					'error' => 'Malformed request.',
 				),
 				400,
 				$key
@@ -71,7 +71,7 @@ final class RemoteController {
 			self::respond(
 				array(
 					'ok'    => false,
-					'error' => 'Los relojes de los dos servidores difieren más de 5 minutos.',
+					'error' => 'The two servers’ clocks differ by more than 5 minutes.',
 				),
 				401,
 				$key,
@@ -82,7 +82,7 @@ final class RemoteController {
 			self::respond(
 				array(
 					'ok'    => false,
-					'error' => 'El paquete llegó dañado.',
+					'error' => 'The package arrived corrupted.',
 				),
 				400,
 				$key,
@@ -93,7 +93,7 @@ final class RemoteController {
 			self::respond(
 				array(
 					'ok'    => false,
-					'error' => 'Petición repetida.',
+					'error' => 'Repeated request.',
 				),
 				401,
 				$key,
@@ -115,7 +115,7 @@ final class RemoteController {
 				SITEFERRY_VERSION
 			);
 			$args   = (array) ( $message['args'] ?? array() );
-			unset( $args['_binary'] ); // Solo el binario firmado (por su sha256) puede llegar aquí.
+			unset( $args['_binary'] ); // Only the signed binary (via its sha256) can get here.
 			if ( null !== $binary ) {
 				$args['_binary'] = $binary;
 			}
@@ -123,7 +123,7 @@ final class RemoteController {
 			$out  = $data['package'] ?? null;
 			unset( $data['package'] );
 			if ( 'push_step' === $op && 'done' === $data['status'] ) {
-				wp_cache_flush(); // Las tablas cambiaron por debajo de la caché de objetos.
+				wp_cache_flush(); // The tables changed underneath the object cache.
 				$received = JobStore::get();
 				UndoPoint::record( (string) ( $received['origin'] ?? $received['id'] ), 'Push recibido', $received['files']['backup'] ?? null, null, array() );
 			}
@@ -150,14 +150,14 @@ final class RemoteController {
 	}
 
 	/**
-	 * Registra el nonce y dice si era nuevo. Una sola opción que se poda sola: los nonces solo
-	 * importan mientras su timestamp sea aceptable (2 × MAX_SKEW).
+	 * Records the nonce and tells whether it was new. A single self-pruning option: nonces only
+	 * matter while their timestamp is acceptable (2 × MAX_SKEW).
 	 *
-	 * @param string $nonce Nonce de la petición.
+	 * @param string $nonce Request nonce.
 	 */
 	private static function fresh_nonce( string $nonce ): bool {
-		// ponytail: dos peticiones simultáneas pueden pisarse el registro; el peor caso es aceptar una repetición
-		// dentro de la misma ventana de 10 minutos, y la firma sigue siendo obligatoria.
+		// ponytail: two simultaneous requests can overwrite each other's record; the worst case is accepting a replay
+		// within the same 10-minute window, and the signature is still required.
 		$now  = time();
 		$seen = array_filter( (array) get_option( 'siteferry_nonces', array() ), static fn( $ts ) => $now - (int) $ts < 2 * Signer::MAX_SKEW );
 		if ( isset( $seen[ $nonce ] ) ) {
@@ -169,14 +169,14 @@ final class RemoteController {
 	}
 
 	/**
-	 * Envía la respuesta firmada y termina (exit: así nadie altera el cuerpo después de firmarlo).
-	 * Lleva el nonce de la petición: una respuesta firmada no sirve como respuesta a otra petición.
+	 * Sends the signed response and exits (so nothing can alter the body after it is signed).
+	 * It carries the request nonce, so a signed response cannot be replayed as the answer to another request.
 	 *
 	 * @param array       $payload Datos.
-	 * @param int         $status  Código HTTP.
+	 * @param int         $status  HTTP status code.
 	 * @param string      $key     Clave.
-	 * @param string      $nonce   Nonce de la petición ('' si no se pudo leer).
-	 * @param string|null $binary  Paquete que acompaña a la respuesta (files_get); su sha256 va firmado.
+	 * @param string      $nonce   Request nonce ('' if it could not be read).
+	 * @param string|null $binary  Package sent with the response (files_get); its sha256 is signed.
 	 */
 	private static function respond( array $payload, int $status, string $key, string $nonce = '', ?string $binary = null ): never {
 		$payload['nonce'] = $nonce;
@@ -191,7 +191,7 @@ final class RemoteController {
 		nocache_headers();
 		header( null === $binary ? 'Content-Type: application/json; charset=utf-8' : 'Content-Type: application/octet-stream' );
 		header( Signer::HEADER . ': ' . Signer::sign( $json, $key ) );
-		echo null === $binary ? $json : $json . "\n" . $binary; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON firmado (+ binario con su sha256 firmado).
+		echo null === $binary ? $json : $json . "\n" . $binary; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Signed JSON (+ binary with its signed sha256).
 		exit;
 	}
 }

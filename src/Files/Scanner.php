@@ -1,6 +1,6 @@
 <?php
 /**
- * Recorre una carpeta por tramos.
+ * Walks a folder in chunks.
  *
  * @package Siteferry
  */
@@ -10,38 +10,38 @@ namespace Siteferry\Files;
 use Siteferry\Engine\Budget;
 
 /**
- * Escaneo reanudable: lista los archivos de una raíz con tamaño y md5, en tantas llamadas
- * como haga falta. El cursor es la cola de carpetas pendientes y la posición dentro de la actual.
- * No sigue symlinks ni lista archivos especiales.
+ * Resumable scan: lists the files of a root with size and md5, in as many calls
+ * as needed. The cursor is the queue of pending folders and the position within the current one.
+ * It does not follow symlinks or list special files.
  */
 final class Scanner {
 
-	/** Sufijo de los archivos a medio recibir; nunca se listan. */
+	/** Suffix of half-received files; they are never listed. */
 	public const PART = '.siteferry-part';
 
 	/**
 	 * Constructor.
 	 *
-	 * @param PathGuard    $guard   Raíz.
-	 * @param list<string> $exclude Patrones fnmatch contra la ruta relativa o el nombre.
-	 * @param bool         $media   Omitir archivos ejecutables (en media no se aceptan).
+	 * @param PathGuard    $guard   Root.
+	 * @param list<string> $exclude fnmatch patterns against the relative path or the name.
+	 * @param bool         $media   Skip executable files (media does not accept them).
 	 */
 	public function __construct( private PathGuard $guard, private array $exclude = array(), private bool $media = false ) {}
 
 	/**
-	 * Escanea un tramo y agrega lo encontrado al manifiesto.
+	 * Scans a chunk and adds what it finds to the manifest.
 	 *
-	 * @param array|null $cursor Null para empezar.
-	 * @param Manifest   $out    Destino de las entradas.
-	 * @param Budget     $budget Tiempo disponible.
-	 * @return array{cursor: ?array, files: int, bytes: int} cursor null = terminado.
+	 * @param array|null $cursor Null to start.
+	 * @param Manifest   $out    Destination for the entries.
+	 * @param Budget     $budget Time available.
+	 * @return array{cursor: ?array, files: int, bytes: int} cursor null = finished.
 	 */
 	public function scan( ?array $cursor, Manifest $out, Budget $budget ): array {
 		$cursor ??= array(
 			'queue' => array( '' ),
 			'pos'   => 0,
 		);
-		// El cursor puede venir del otro sitio: solo textos y un entero no negativo.
+		// The cursor may come from the other site: only strings and a non-negative integer.
 		$cursor = array(
 			'queue' => array_values( array_filter( (array) ( $cursor['queue'] ?? array() ), 'is_string' ) ),
 			'pos'   => max( 0, (int) ( $cursor['pos'] ?? 0 ) ),
@@ -51,7 +51,7 @@ final class Scanner {
 		while ( $cursor['queue'] ) {
 			$dir = $cursor['queue'][0];
 			if ( ! $this->listable( $dir ) ) {
-				array_shift( $cursor['queue'] ); // Una carpeta que no podría estar en la cola: se descarta.
+				array_shift( $cursor['queue'] ); // A folder that could not be in the queue: discard it.
 				$cursor['pos'] = 0;
 				continue;
 			}
@@ -67,7 +67,7 @@ final class Scanner {
 				if ( is_dir( $absolute ) ) {
 					$cursor['queue'][] = $relative;
 				} elseif ( is_file( $absolute ) && ! ( $this->media && PathGuard::executable( $relative ) ) ) {
-					// ponytail: un archivo se hashea de una vez; uno de varios GB puede pasar del presupuesto de la petición.
+					// ponytail: a file is hashed in one go; one of several GB can exceed the request budget.
 					$size = (int) filesize( $absolute );
 					$out->add( $relative, $size, (string) md5_file( $absolute ) );
 					++$files;
@@ -91,9 +91,9 @@ final class Scanner {
 	}
 
 	/**
-	 * Nombres de una carpeta, ordenados.
+	 * Names in a folder, sorted.
 	 *
-	 * @param string $dir Carpeta relativa.
+	 * @param string $dir Relative folder.
 	 * @return list<string>
 	 */
 	private function names( string $dir ): array {
@@ -102,18 +102,18 @@ final class Scanner {
 	}
 
 	/**
-	 * Si una ruta queda fuera por un patrón o es un archivo a medio recibir.
+	 * Whether a path is left out by a pattern or is a half-received file.
 	 *
-	 * @param string $relative Ruta relativa.
+	 * @param string $relative Relative path.
 	 */
 	private function excluded( string $relative ): bool {
 		return Roots::matches( $this->exclude, $relative );
 	}
 
 	/**
-	 * Si una carpeta de la cola es legítima: dentro de la raíz, real (no symlink) y no excluida.
+	 * Whether a queued folder is legitimate: inside the root, real (not a symlink) and not excluded.
 	 *
-	 * @param string $dir Carpeta relativa ('' = raíz).
+	 * @param string $dir Relative folder ('' = root).
 	 */
 	private function listable( string $dir ): bool {
 		if ( '' === $dir ) {

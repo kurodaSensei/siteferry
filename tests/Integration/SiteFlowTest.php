@@ -1,6 +1,6 @@
 <?php
 /**
- * Paquete de sitio completo (.sfy) y deshacer.
+ * Full site package (.sfy) and undo.
  *
  * @package Siteferry
  */
@@ -27,7 +27,7 @@ final class SiteFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Sitio con carpetas propias bajo $this->storage/$name.
+	 * Site with its own folders under $this->storage/$name.
 	 */
 	private function files_site( string $prefix, string $home, string $name ): array {
 		$base = "$this->storage/$name";
@@ -54,7 +54,7 @@ final class SiteFlowTest extends DbTestCase {
 		file_put_contents( $path, $content );
 	}
 
-	/** @return array<string, string> ruta => md5 */
+	/** @return array<string, string> path => md5 */
 	private function tree( string $dir ): array {
 		$out = array();
 		$it  = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ) );
@@ -66,8 +66,8 @@ final class SiteFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Corre el job; con $repeat, los pasos de paquete y archivos se ejecutan dos veces desde el mismo
-	 * estado guardado (una petición que se cortó antes de guardar el job y se repite).
+	 * Runs the job; with $repeat, package and file steps run twice from the same saved
+	 * state (a request that was cut off before saving the job and is repeated).
 	 */
 	private function run_job( Db $db, array $job, bool $repeat = false ): array {
 		$runner = new Runner( $db );
@@ -77,11 +77,11 @@ final class SiteFlowTest extends DbTestCase {
 			}
 			$job = $runner->step( $job, new Budget( 0 ) );
 		}
-		$this->assertSame( 'done', $job['status'], (string) $job['error'] . "\n" . implode( "\n", $job['log'] ) . "\nPaso: " . json_encode( $job['steps'][ $job['index'] ] ?? null ) . " cursor " . json_encode( $job['cursor'] ) );
+		$this->assertSame( 'done', $job['status'], (string) $job['error'] . "\n" . implode( "\n", $job['log'] ) . "\nStep: " . json_encode( $job['steps'][ $job['index'] ] ?? null ) . " cursor " . json_encode( $job['cursor'] ) );
 		return $job;
 	}
 
-	/** Lo que UndoPoint::from_job guardaría tras el job. */
+	/** What UndoPoint::from_job would save after the job. */
 	private function undo_point( array $job ): array {
 		return array(
 			'db_backup' => $job['files']['backup'] ?? null,
@@ -90,9 +90,9 @@ final class SiteFlowTest extends DbTestCase {
 		);
 	}
 
-	/** Estado comparable de la base. */
+	/** Comparable database state. */
 	private function snapshot( Db $db, string $prefix ): array {
-		// Opciones por nombre: las siteferry_* se reinsertan (otro option_id) y el plugin queda siempre activo.
+		// Options by name: the siteferry_* ones are reinserted (different option_id) and the plugin always stays active.
 		$out = array( 'options' => $db->rows( "SELECT option_name, option_value FROM {$prefix}options WHERE option_name <> 'active_plugins' ORDER BY option_name" ) );
 		foreach ( array( 'posts', 'usermeta', 'child', 'parent' ) as $table ) {
 			$out[ $table ] = $this->checksum( $db, $prefix . $table );
@@ -104,7 +104,7 @@ final class SiteFlowTest extends DbTestCase {
 		$a = $this->seeded( 'wpa_', self::OLD );
 		$b = $this->seeded( 'wpb_', self::NEW );
 		$this->put( 'a/uploads/2024/05/foto.jpg', 'foto A' );
-		$this->put( 'a/uploads/video.mp4', random_bytes( 9 * 1024 * 1024 + 7 ) ); // Más de un bloque de 8 MB.
+		$this->put( 'a/uploads/video.mp4', random_bytes( 9 * 1024 * 1024 + 7 ) ); // More than one 8 MB block.
 		$this->put( 'a/plugins/mi-plugin/mi-plugin.php', '<?php // v2' );
 		$this->put( 'a/plugins/nuevo/nuevo.php', '<?php // solo en A' );
 		$this->put( 'b/uploads/2024/05/foto.jpg', 'foto B' );
@@ -124,7 +124,7 @@ final class SiteFlowTest extends DbTestCase {
 			true
 		);
 		$this->assertStringEndsWith( '.sfy', $export['files']['export'] );
-		$this->assertEqualsCanonicalizing( array( 'uploads', 'plugins', 'themes' ), array_keys( $export['file_stats'] ), 'mu-plugins no existe en el sitio' );
+		$this->assertEqualsCanonicalizing( array( 'uploads', 'plugins', 'themes' ), array_keys( $export['file_stats'] ), 'mu-plugins does not exist on the site' );
 
 		$import = $this->run_job(
 			$b,
@@ -144,10 +144,10 @@ final class SiteFlowTest extends DbTestCase {
 		$this->assertSame( self::NEW, $b->value( "SELECT option_value FROM wpb_options WHERE option_name = 'home'" ) );
 		$this->assertStringContainsString( 'https:\/\/new.example\/a.jpg', (string) $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 1' ) );
 		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
-		$this->assertSame( $this->tree( "$this->storage/a/plugins" ), $this->tree( "$this->storage/b/plugins" ), 'el código se reemplaza por carpeta' );
+		$this->assertSame( $this->tree( "$this->storage/a/plugins" ), $this->tree( "$this->storage/b/plugins" ), 'code is replaced folder by folder' );
 		$this->assertSame( 'foto A', file_get_contents( "$this->storage/b/uploads/2024/05/foto.jpg" ) );
 		$this->assertSame( md5_file( "$this->storage/a/uploads/video.mp4" ), md5_file( "$this->storage/b/uploads/video.mp4" ) );
-		$this->assertSame( 'se queda', file_get_contents( "$this->storage/b/uploads/solo-b.jpg" ), 'importar no borra media' );
+		$this->assertSame( 'se queda', file_get_contents( "$this->storage/b/uploads/solo-b.jpg" ), 'importing does not delete media' );
 
 		$undo = Planner::create( 'undo', $this->undo_point( $import ), $site_b, new Schema( $b ) );
 		$this->run_job( $b, $undo, true );

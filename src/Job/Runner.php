@@ -1,6 +1,6 @@
 <?php
 /**
- * Ejecuta los pasos de un job.
+ * Runs the steps of a job.
  *
  * @package Siteferry
  */
@@ -28,13 +28,13 @@ use Siteferry\Remote\FileOps;
 use Siteferry\Support\Db;
 
 /**
- * Avanza un job tanto como permita el presupuesto. No depende de WordPress:
- * recibe el job como array y devuelve el job actualizado.
+ * Advances a job as far as the budget allows. It does not depend on WordPress:
+ * it takes the job as an array and returns the updated job.
  */
 final class Runner {
 
 	/**
-	 * Estructura de la BD.
+	 * Database structure.
 	 *
 	 * @var Schema
 	 */
@@ -43,19 +43,19 @@ final class Runner {
 	/**
 	 * Constructor.
 	 *
-	 * @param Db            $db     Conexión.
-	 * @param \Closure|null $remote fn(array $job, string $op, array $args, ?string $binary = null): array — llamada al sitio remoto (pull/push).
+	 * @param Db            $db     Connection.
+	 * @param \Closure|null $remote fn(array $job, string $op, array $args, ?string $binary = null): array — call to the remote site (pull/push).
 	 */
 	public function __construct( private Db $db, private ?\Closure $remote = null ) {
 		$this->schema = new Schema( $db );
 	}
 
 	/**
-	 * Avanza el job. Si falla, queda en estado "failed" con el error; las tablas vivas no se tocan
-	 * hasta el paso final.
+	 * Advances the job. If it fails, it is left in the "failed" state with the error; live tables are
+	 * not touched until the final step.
 	 *
 	 * @param array  $job    Job.
-	 * @param Budget $budget Tiempo disponible.
+	 * @param Budget $budget Available time.
 	 */
 	public function step( array $job, Budget $budget ): array {
 		if ( ! self::is_open( $job ) ) {
@@ -67,7 +67,7 @@ final class Runner {
 				function () use ( &$job, $budget ) {
 					while ( isset( $job['steps'][ $job['index'] ] ) ) {
 						if ( 'receive' === $job['steps'][ $job['index'] ]['type'] && empty( $job['received'] ) ) {
-							break; // Esperando los datos del otro sitio.
+							break; // Waiting for data from the other site.
 						}
 						if ( $this->run_step( $job, $job['steps'][ $job['index'] ], $budget ) ) {
 							++$job['index'];
@@ -82,8 +82,8 @@ final class Runner {
 			);
 			if ( ! isset( $job['steps'][ $job['index'] ] ) ) {
 				$job['status'] = 'done';
-				unset( $job['remote']['key'] ); // La clave del otro sitio no se guarda más de lo necesario.
-				self::log( $job, 'Terminado.' );
+				unset( $job['remote']['key'] ); // The other site's key is not kept longer than necessary.
+				self::log( $job, 'Done.' );
 			}
 		} catch ( \Throwable $e ) {
 			$job['status'] = 'failed';
@@ -95,7 +95,7 @@ final class Runner {
 	}
 
 	/**
-	 * Cancela: borra tablas temporales y archivos a medias.
+	 * Cancels: deletes temporary tables and half-written files.
 	 *
 	 * @param array $job Job.
 	 */
@@ -107,10 +107,10 @@ final class Runner {
 			try {
 				$this->remote( $job, 'push_cancel', array( 'id' => $job['remote']['job'] ) );
 			} catch ( \RuntimeException $e ) {
-				self::log( $job, 'No se pudo cancelar en el sitio remoto: ' . $e->getMessage() );
+				self::log( $job, 'Could not cancel on the remote site: ' . $e->getMessage() );
 			}
 		}
-		// El backup nunca se borra aquí: puede ser lo único que quede si algo falló. Lo limpia wp-cron a los 7 días.
+		// The backup is never deleted here: it may be all that is left if something failed. wp-cron cleans it up after 7 days.
 		foreach ( array_diff( $job['owned'], array( 'backup' ) ) as $key ) {
 			if ( isset( $job['files'][ $key ] ) ) {
 				self::delete( $job['files'][ $key ] );
@@ -118,12 +118,12 @@ final class Runner {
 		}
 		$job['status'] = 'cancelled';
 		unset( $job['remote']['key'] );
-		self::log( $job, 'Cancelado.' );
+		self::log( $job, 'Cancelled.' );
 		return $job;
 	}
 
 	/**
-	 * Si el job sigue en curso.
+	 * Whether the job is still in progress.
 	 *
 	 * @param array|null $job Job.
 	 */
@@ -132,7 +132,7 @@ final class Runner {
 	}
 
 	/**
-	 * Porcentaje aproximado, ponderado por filas.
+	 * Approximate percentage, weighted by rows.
 	 *
 	 * @param array $job Job.
 	 */
@@ -155,10 +155,10 @@ final class Runner {
 	}
 
 	/**
-	 * Agrega una línea al registro del job (se guardan las últimas 200).
+	 * Appends a line to the job log (the last 200 are kept).
 	 *
 	 * @param array  $job     Job.
-	 * @param string $message Texto.
+	 * @param string $message Text.
 	 */
 	public static function log( array &$job, string $message ): void {
 		$job['log'][] = gmdate( 'H:i:s' ) . ' ' . $message;
@@ -166,14 +166,14 @@ final class Runner {
 	}
 
 	/**
-	 * Ejecuta un tramo del paso actual.
+	 * Runs a chunk of the current step.
 	 *
 	 * @param array  $job    Job.
-	 * @param array  $step   Paso.
-	 * @param Budget $budget Tiempo.
-	 * @return bool Si el paso terminó.
+	 * @param array  $step   Step.
+	 * @param Budget $budget Time.
+	 * @return bool Whether the step finished.
 	 *
-	 * @throws \RuntimeException Si el paso falla.
+	 * @throws \RuntimeException If the step fails.
 	 */
 	private function run_step( array &$job, array $step, Budget $budget ): bool {
 		switch ( $step['type'] ) {
@@ -237,7 +237,7 @@ final class Runner {
 
 			case 'files_undo':
 				$stats = ( new Applier( $job['site']['roots'], $step['dir'] ) )->restore( $step['root'] );
-				self::log( $job, "Archivos ({$step['root']}): {$stats['restored']} restaurados, {$stats['removed']} retirados (a undone/)." );
+				self::log( $job, "Files ({$step['root']}): {$stats['restored']} restored, {$stats['removed']} moved aside (to undone/)." );
 				return true;
 
 			case 'push_begin':
@@ -246,11 +246,11 @@ final class Runner {
 					'push_begin',
 					array(
 						'backup'  => $job['options']['backup'],
-						'session' => $job['id'], // El remoto une BD y archivos de este push en un mismo punto de deshacer.
+						'session' => $job['id'], // The remote joins the DB and files of this push into a single undo point.
 					)
 				)['id'];
 				$job['remote']['seq'] = 0;
-				self::log( $job, 'El sitio remoto empezó a recibir.' );
+				self::log( $job, 'The remote site started receiving.' );
 				return true;
 
 			case 'remote_wait':
@@ -297,9 +297,9 @@ final class Runner {
 				$job['step_rows']          = intdiv( $result['offset'], 200 );
 				$job['import']['skipped'] += $result['skipped'];
 				if ( $result['done'] ) {
-					self::log( $job, count( $job['import']['tables'] ) . ' tablas cargadas.' );
+					self::log( $job, count( $job['import']['tables'] ) . ' tables loaded.' );
 					if ( $job['import']['skipped'] ) {
-						self::log( $job, $job['import']['skipped'] . ' sentencias omitidas (vistas, triggers o procedimientos).' );
+						self::log( $job, $job['import']['skipped'] . ' statements skipped (views, triggers or procedures).' );
 					}
 				}
 				return $result['done'];
@@ -312,7 +312,7 @@ final class Runner {
 				$warnings = ( new Finalizer( $this->db, $this->schema ) )->run(
 					$job['swap'],
 					$job['fks'],
-					'pull' === $job['intent'] ? array() : $job['ref_map'], // En pull las cláusulas ya vienen validadas y apuntando aquí.
+					'pull' === $job['intent'] ? array() : $job['ref_map'], // In a pull the clauses already arrive validated and pointing here.
 					$job['site']['options_table'],
 					$job['site']['preserve'],
 					$job['site']['plugin']
@@ -321,7 +321,7 @@ final class Runner {
 					$job['warnings'][] = $warning;
 					self::log( $job, $warning );
 				}
-				self::log( $job, count( $job['swap'] ) . ' tablas reemplazadas.' );
+				self::log( $job, count( $job['swap'] ) . ' tables replaced.' );
 				return true;
 
 			case 'cleanup':
@@ -337,15 +337,15 @@ final class Runner {
 				}
 				return true;
 		}
-		throw new \RuntimeException( 'Paso desconocido: ' . $step['type'] );
+		throw new \RuntimeException( 'Unknown step: ' . $step['type'] );
 	}
 
 	/**
-	 * Copia un tramo de una tabla.
+	 * Copies a chunk of a table.
 	 *
 	 * @param array  $job    Job.
-	 * @param array  $step   Paso copy.
-	 * @param Budget $budget Tiempo.
+	 * @param array  $step   Copy step.
+	 * @param Budget $budget Time.
 	 */
 	private function copy( array &$job, array $step, Budget $budget ): bool {
 		$replacer = null;
@@ -361,7 +361,7 @@ final class Runner {
 			'remote' => new MemorySink(),
 			default  => new TableSink( $this->db ),
 		};
-		// Los volcados a archivo son copias literales de este sitio: sin cambio de prefijo.
+		// Dumps to a file are literal copies of this site: no prefix change.
 		$copier = new TableCopier(
 			$this->db,
 			$this->schema,
@@ -378,7 +378,7 @@ final class Runner {
 			$sink->close();
 		}
 		if ( $push && $sink->statements ) {
-			// El cursor solo avanza si el otro sitio confirmó el trozo; los trozos van numerados.
+			// The cursor only advances if the other site confirmed the chunk; chunks are numbered.
 			$seq = $job['remote']['seq'] + 1;
 			$this->remote(
 				$job,
@@ -408,28 +408,28 @@ final class Runner {
 		$job['rows']      += $result['rows'];
 
 		if ( null === $result['cursor'] ) {
-			self::log( $job, $step['label'] . ': ' . $job['step_rows'] . ' filas' );
+			self::log( $job, $step['label'] . ': ' . $job['step_rows'] . ' rows' );
 			return true;
 		}
 		return false;
 	}
 
 	/**
-	 * Comprobaciones antes de tocar nada.
+	 * Checks before touching anything.
 	 *
 	 * @param array $job Job.
 	 *
-	 * @throws \RuntimeException Con todos los problemas encontrados.
+	 * @throws \RuntimeException With all the problems found.
 	 */
 	private function preflight( array &$job ): void {
 		$errors = array();
 		if ( $job['site']['multisite'] ) {
-			$errors[] = 'Multisite todavía no está soportado.';
+			$errors[] = 'Multisite is not supported yet.';
 		}
 		if ( $job['options']['regex'] ) {
 			foreach ( $job['options']['pairs'] as [ $pattern ] ) {
 				if ( false === @preg_match( $pattern, '' ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-					$errors[] = 'Expresión regular inválida: ' . $pattern;
+					$errors[] = 'Invalid regular expression: ' . $pattern;
 				}
 			}
 		}
@@ -438,17 +438,17 @@ final class Runner {
 				continue;
 			}
 			if ( empty( $step['remote'] ) && ! $this->schema->exists( $step['source'] ) ) {
-				$errors[] = 'No existe la tabla ' . $step['source'];
+				$errors[] = 'Table not found: ' . $step['source'];
 			} elseif ( 'table' === $step['sink'] && strlen( $step['final'] ) > Schema::MAX_NAME ) {
-				$errors[] = 'Nombre de tabla demasiado largo: ' . $step['final'];
+				$errors[] = 'Table name too long: ' . $step['final'];
 			}
 		}
 		$storage = $job['site']['storage'];
 		if ( ! is_dir( $storage ) || ! is_writable( $storage ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable
-			$errors[] = 'No se puede escribir en la carpeta de archivos: ' . $storage;
+			$errors[] = 'Cannot write to the files folder: ' . $storage;
 		}
 		if ( isset( $job['files']['import'] ) && ! is_readable( $job['files']['import'] ) ) {
-			$errors[] = 'No se puede leer el archivo a importar.';
+			$errors[] = 'Cannot read the file to import.';
 		}
 		if ( $errors ) {
 			throw new \RuntimeException( implode( ' ', $errors ) );
@@ -462,30 +462,30 @@ final class Runner {
 			$this->db->query( 'DROP TABLE IF EXISTS ' . Db::ident( $table ) );
 		}
 		if ( $leftovers ) {
-			self::log( $job, count( $leftovers ) . ' tablas temporales de un intento anterior eliminadas.' );
+			self::log( $job, count( $leftovers ) . ' temporary tables from a previous attempt removed.' );
 		}
-		self::log( $job, 'Comprobaciones correctas.' );
+		self::log( $job, 'Preflight checks passed.' );
 	}
 
 	/**
-	 * Descomprime el .sql.gz subido.
+	 * Decompresses the uploaded .sql.gz.
 	 *
 	 * @param array $job Job.
 	 *
-	 * @throws \RuntimeException Si falla.
+	 * @throws \RuntimeException If it fails.
 	 */
 	private function decompress( array &$job ): void {
-		// ponytail: se descomprime en una sola petición; con dumps de varios GB y poco tiempo por petición, subir el .sql sin comprimir.
+		// ponytail: it is decompressed in a single request; with multi-GB dumps and little time per request, upload the uncompressed .sql.
 		$target = $job['site']['storage'] . '/import-' . $job['id'] . '.sql';
 		$in     = gzopen( $job['files']['import_gz'] ?? $job['files']['import'], 'rb' );
 		$out    = fopen( $target, 'wb' );
 		if ( ! $in || ! $out ) {
-			throw new \RuntimeException( 'No se pudo descomprimir el archivo.' );
+			throw new \RuntimeException( 'Could not decompress the file.' );
 		}
 		while ( ! gzeof( $in ) ) {
 			$chunk = gzread( $in, 1024 * 1024 );
 			if ( false === $chunk || fwrite( $out, $chunk ) !== strlen( $chunk ) ) {
-				throw new \RuntimeException( 'No se pudo descomprimir el archivo (¿disco lleno o archivo dañado?).' );
+				throw new \RuntimeException( 'Could not decompress the file (disk full or corrupt file?).' );
 			}
 		}
 		gzclose( $in );
@@ -501,16 +501,16 @@ final class Runner {
 	}
 
 	/**
-	 * Ejecuta una sentencia del archivo importado sobre tablas crudas `_sfr_*`.
+	 * Runs a statement from the imported file against raw `_sfr_*` tables.
 	 *
 	 * @param array  $job Job.
-	 * @param string $sql Sentencia.
+	 * @param string $sql Statement.
 	 *
-	 * @throws \RuntimeException Si el nombre de tabla es demasiado largo o MySQL falla.
+	 * @throws \RuntimeException If the table name is too long or MySQL fails.
 	 */
 	private function import_statement( array &$job, string $sql ): void {
 		$sql = ltrim( $sql );
-		// Las tablas crudas se crean y borran aquí; nada del archivo puede tocar las tablas vivas.
+		// Raw tables are created and dropped here; nothing in the file can touch live tables.
 		if ( preg_match( '/^(\/\*|SET\s|USE\s|LOCK\s+TABLES|UNLOCK\s+TABLES|DROP\s|CREATE\s+DATABASE|START\s+TRANSACTION|BEGIN|COMMIT)/i', $sql ) ) {
 			return;
 		}
@@ -521,7 +521,7 @@ final class Runner {
 		$name = $m[2];
 		$raw  = Schema::RAW . $name;
 		if ( strlen( $raw ) > 64 ) {
-			throw new \RuntimeException( 'Nombre de tabla demasiado largo: ' . $name );
+			throw new \RuntimeException( 'Table name too long: ' . $name );
 		}
 		$verb = strtoupper( (string) preg_replace( '/\s+/', ' ', $m[1] ) );
 		$rest = substr( $sql, strlen( $m[0] ) );
@@ -550,22 +550,22 @@ final class Runner {
 	}
 
 	/**
-	 * Tras cargar el archivo: detecta el prefijo y la URL de origen y agrega los pasos restantes.
+	 * After loading the file: detects the prefix and source URL and adds the remaining steps.
 	 *
 	 * @param array $job Job.
 	 *
-	 * @throws \RuntimeException Si el archivo no tenía tablas.
+	 * @throws \RuntimeException If the file had no tables.
 	 */
 	private function plan_import( array &$job ): void {
 		$names = array_keys( $job['import']['tables'] );
 		if ( ! $names ) {
-			throw new \RuntimeException( 'El archivo no contiene tablas.' );
+			throw new \RuntimeException( 'The file contains no tables.' );
 		}
 		$from = $this->source_prefix( $job, $names );
 		$to   = $job['site']['prefix'];
 
-		// Primero las tablas del prefijo elegido; una tabla sin ese prefijo que caiga en el mismo
-		// nombre final (p. ej. restos de otra instalación) se omite.
+		// Tables with the chosen prefix come first; a table without that prefix that lands on the same
+		// final name (e.g. leftovers from another install) is skipped.
 		$own     = array_filter( $names, static fn( $n ) => '' !== $from && str_starts_with( $n, $from ) );
 		$map     = array();
 		$skipped = array();
@@ -576,18 +576,18 @@ final class Runner {
 				continue;
 			}
 			if ( strlen( $final ) > Schema::MAX_NAME ) {
-				throw new \RuntimeException( 'Nombre de tabla demasiado largo: ' . $final );
+				throw new \RuntimeException( 'Table name too long: ' . $final );
 			}
 			$map[ $name ] = $final;
 		}
 		if ( $skipped ) {
-			self::log( $job, count( $skipped ) . " tablas omitidas porque chocarían con las del prefijo $from: " . implode( ', ', $skipped ) );
+			self::log( $job, count( $skipped ) . " tables skipped because they would collide with those of the $from prefix: " . implode( ', ', $skipped ) );
 		}
 		if ( '' !== $from ) {
 			$job['prefix_from'] = $from;
 			$job['prefix_to']   = $to;
 			if ( $from !== $to ) {
-				self::log( $job, "Prefijo de tablas: $from → $to" );
+				self::log( $job, "Table prefix: $from → $to" );
 			}
 		}
 
@@ -620,18 +620,18 @@ final class Runner {
 		$job['fks']     = $fks;
 		$job['ref_map'] = $map;
 
-		// La limpieza va antes del cambio: tras importar, la sesión del usuario puede dejar de existir
-		// y ninguna petición posterior llegaría a ejecutarse.
-		$steps[] = Planner::step( 'cleanup', 'Limpieza' );
-		$steps[] = Planner::step( 'finalize', 'Cambio de tablas' );
+		// Cleanup goes before the swap: after importing, the user's session may stop existing
+		// and no later request would get to run.
+		$steps[] = Planner::step( 'cleanup', 'Cleanup' );
+		$steps[] = Planner::step( 'finalize', 'Swap tables' );
 		array_splice( $job['steps'], $job['index'] + 1, 0, $steps );
 	}
 
 	/**
-	 * Agrega pares para pasar de la URL del sitio de origen a la de este sitio.
+	 * Adds pairs to turn the source site's URL into this site's URL.
 	 *
 	 * @param array  $job     Job.
-	 * @param string $options Tabla de opciones cruda.
+	 * @param string $options Raw options table.
 	 */
 	private function add_url_pairs( array &$job, string $options ): void {
 		if ( ! $this->schema->exists( $options ) ) {
@@ -646,18 +646,18 @@ final class Runner {
 				$auto[ $old ] = $new;
 			}
 		}
-		uksort( $auto, static fn( $a, $b ) => strlen( $b ) <=> strlen( $a ) ); // La más larga primero.
+		uksort( $auto, static fn( $a, $b ) => strlen( $b ) <=> strlen( $a ) ); // Longest first.
 		foreach ( $auto as $old => $new ) {
 			$job['options']['pairs'][] = array( $old, $new );
-			self::log( $job, "Reemplazo automático: $old → $new" );
+			self::log( $job, "Automatic replacement: $old → $new" );
 		}
 	}
 
 	/**
-	 * Prefijos de las instalaciones de WordPress en una lista de tablas (los que tienen options,
-	 * posts y usermeta; los subsitios de multisite no tienen usermeta propio).
+	 * Prefixes of the WordPress installs in a list of tables (those with options,
+	 * posts and usermeta; multisite subsites have no usermeta of their own).
 	 *
-	 * @param string[] $names Tablas.
+	 * @param string[] $names Tables.
 	 * @return string[]
 	 */
 	public static function detect_prefixes( array $names ): array {
@@ -675,32 +675,32 @@ final class Runner {
 	}
 
 	/**
-	 * Prefijo de la instalación a importar: el indicado, o el único que haya.
+	 * Prefix of the install to import: the given one, or the only one there is.
 	 *
 	 * @param array    $job   Job.
-	 * @param string[] $names Tablas del archivo.
+	 * @param string[] $names Tables in the file.
 	 *
-	 * @throws \RuntimeException Si hay varias instalaciones y no se indicó cuál, o la indicada no está.
+	 * @throws \RuntimeException If there are several installs and none was specified, or the specified one is missing.
 	 */
 	private function source_prefix( array $job, array $names ): string {
 		$found  = self::detect_prefixes( $names );
 		$chosen = (string) ( $job['options']['source_prefix'] ?? '' );
 		if ( '' !== $chosen ) {
 			if ( ! in_array( $chosen, $found, true ) ) {
-				throw new \RuntimeException( "El archivo no tiene una instalación con el prefijo $chosen. Prefijos encontrados: " . implode( ', ', $found ) );
+				throw new \RuntimeException( "The file has no install with the prefix $chosen. Prefixes found: " . implode( ', ', $found ) );
 			}
 			return $chosen;
 		}
 		if ( count( $found ) > 1 ) {
-			throw new \RuntimeException( 'El archivo trae varias instalaciones de WordPress (prefijos: ' . implode( ', ', $found ) . '). Cancela e indica el prefijo de origen.' );
+			throw new \RuntimeException( 'The file contains several WordPress installs (prefixes: ' . implode( ', ', $found ) . '). Cancel and specify the source prefix.' );
 		}
 		return $found[0] ?? '';
 	}
 
 	/**
-	 * Borra un archivo si existe.
+	 * Deletes a file if it exists.
 	 *
-	 * @param string $path Ruta.
+	 * @param string $path Path.
 	 */
 	private static function delete( string $path ): void {
 		if ( is_file( $path ) ) {
@@ -709,9 +709,9 @@ final class Runner {
 	}
 
 	/**
-	 * Tamaño de un archivo para el registro.
+	 * File size for the log.
 	 *
-	 * @param string $path Ruta.
+	 * @param string $path Path.
 	 */
 	private static function megabytes( string $path ): string {
 		$bytes = (int) filesize( $path );
@@ -719,12 +719,12 @@ final class Runner {
 	}
 
 	/**
-	 * Pull: pide al sitio remoto un tramo de la tabla y lo carga en la tabla temporal local.
+	 * Pull: asks the remote site for a chunk of the table and loads it into the local temporary table.
 	 *
 	 * @param array $job  Job.
-	 * @param array $step Paso copy remoto.
+	 * @param array $step Remote copy step.
 	 *
-	 * @throws \RuntimeException Si el remoto devuelve algo que no corresponde a esa tabla.
+	 * @throws \RuntimeException If the remote returns something that does not belong to that table.
 	 */
 	private function pull_copy( array &$job, array $step ): bool {
 		$o      = $job['options'];
@@ -745,14 +745,14 @@ final class Runner {
 		);
 		foreach ( MemorySink::decode( (string) $result['statements'] ) as $sql ) {
 			if ( ! Schema::safe_temp_statement( $sql, $step['target'] ) ) {
-				throw new \RuntimeException( 'El sitio remoto envió una sentencia que no corresponde a ' . $step['source'] . '.' );
+				throw new \RuntimeException( 'The remote site sent a statement that does not belong to ' . $step['source'] . '.' );
 			}
 			$this->db->query( str_starts_with( $sql, 'CREATE' ) ? $this->schema->known_collations( $sql ) : $sql );
 		}
 		foreach ( (array) $result['fks'] as $clause ) {
 			$safe = Schema::foreign_key( (string) $clause, $job['ref_map'], $job['site']['prefix'] );
 			if ( null === $safe ) {
-				throw new \RuntimeException( 'El sitio remoto envió una llave foránea inválida en ' . $step['source'] . '.' );
+				throw new \RuntimeException( 'The remote site sent an invalid foreign key in ' . $step['source'] . '.' );
 			}
 			$job['fks'][] = array(
 				'table'  => $step['final'],
@@ -764,24 +764,24 @@ final class Runner {
 		$job['rows']      += (int) $result['rows'];
 
 		if ( null === $job['cursor'] ) {
-			self::log( $job, $step['label'] . ': ' . $job['step_rows'] . ' filas' );
+			self::log( $job, $step['label'] . ': ' . $job['step_rows'] . ' rows' );
 			return true;
 		}
 		return false;
 	}
 
 	/**
-	 * Push: espera a que el sitio remoto esté listo para recibir (until=ready) o termine el cambio (until=done).
+	 * Push: waits for the remote site to be ready to receive (until=ready) or to finish the swap (until=done).
 	 *
 	 * @param array $job  Job.
-	 * @param array $step Paso remote_wait.
+	 * @param array $step remote_wait step.
 	 *
-	 * @throws \RuntimeException Si el remoto falló.
+	 * @throws \RuntimeException If the remote failed.
 	 */
 	private function remote_wait( array &$job, array $step ): bool {
 		$state = $this->remote( $job, 'push_step', array( 'id' => $job['remote']['job'] ) );
 		if ( in_array( $state['status'], array( 'failed', 'cancelled' ), true ) ) {
-			throw new \RuntimeException( 'Sitio remoto: ' . ( $state['error'] ?? $state['status'] ) );
+			throw new \RuntimeException( 'Remote site: ' . ( $state['error'] ?? $state['status'] ) );
 		}
 		$job['step_rows'] = (int) $state['percent'];
 		if ( 'ready' === $step['until'] ) {
@@ -789,7 +789,7 @@ final class Runner {
 				return false;
 			}
 			if ( $state['backup'] ) {
-				self::log( $job, 'Backup en el sitio remoto: ' . $state['backup'] );
+				self::log( $job, 'Backup on the remote site: ' . $state['backup'] );
 			}
 			return true;
 		}
@@ -797,41 +797,41 @@ final class Runner {
 			return false;
 		}
 		foreach ( (array) $state['warnings'] as $warning ) {
-			$job['warnings'][] = 'Sitio remoto: ' . $warning;
+			$job['warnings'][] = 'Remote site: ' . $warning;
 		}
-		self::log( $job, 'El sitio remoto quedó actualizado.' );
+		self::log( $job, 'The remote site is up to date.' );
 		return true;
 	}
 
 	/**
-	 * Llama al sitio remoto.
+	 * Calls the remote site.
 	 *
-	 * @param array       $job    Job (lleva la conexión).
-	 * @param string      $op     Operación.
-	 * @param array       $args   Argumentos.
-	 * @param string|null $binary Binario que acompaña a la petición (files_put).
+	 * @param array       $job    Job (carries the connection).
+	 * @param string      $op     Operation.
+	 * @param array       $args   Arguments.
+	 * @param string|null $binary Binary that accompanies the request (files_put).
 	 *
-	 * @throws \RuntimeException Si no hay conexión configurada.
+	 * @throws \RuntimeException If no connection is configured.
 	 */
 	private function remote( array $job, string $op, array $args, ?string $binary = null ): array {
 		if ( ! $this->remote ) {
-			throw new \RuntimeException( 'Esta operación necesita conexión con el sitio remoto.' );
+			throw new \RuntimeException( 'This operation requires a connection to the remote site.' );
 		}
 		return ( $this->remote )( $job, $op, $args, $binary );
 	}
 
 	/**
-	 * Escanea una carpeta (de este sitio o del remoto) hacia la lista de origen o de destino.
+	 * Scans a folder (of this site or the remote one) into the source or destination list.
 	 *
 	 * @param array  $job    Job.
-	 * @param array  $step   Paso files_scan.
-	 * @param Budget $budget Tiempo.
+	 * @param array  $step   files_scan step.
+	 * @param Budget $budget Time.
 	 */
 	private function files_scan( array &$job, array $step, Budget $budget ): bool {
 		$root = $step['root'];
 		$out  = $this->file_list( $job, $root, $step['out'] );
 		if ( null === $job['cursor'] ) {
-			Applier::remove_tree( $out->path() ); // Un reintento empieza de cero.
+			Applier::remove_tree( $out->path() ); // A retry starts from scratch.
 		}
 		do {
 			if ( 'remote' === $step['side'] ) {
@@ -858,10 +858,10 @@ final class Runner {
 	}
 
 	/**
-	 * Compara origen y destino de una carpeta; deja las listas de envío y borrado.
+	 * Compares the source and destination of a folder; leaves the send and delete lists.
 	 *
 	 * @param array  $job  Job.
-	 * @param string $root Carpeta.
+	 * @param string $root Folder.
 	 */
 	private function files_diff( array &$job, string $root ): void {
 		$stats                      = Diff::compute(
@@ -881,16 +881,16 @@ final class Runner {
 			}
 		}
 		unset( $other );
-		$deletes = $job['options']['delete_files'] ? ', ' . $stats['delete'] . ' por borrar' : '';
-		self::log( $job, "Archivos ($root): {$stats['send']} por enviar (" . number_format( $stats['bytes'] / 1048576, 1 ) . " MB)$deletes." );
+		$deletes = $job['options']['delete_files'] ? ', ' . $stats['delete'] . ' to delete' : '';
+		self::log( $job, "Files ($root): {$stats['send']} to send (" . number_format( $stats['bytes'] / 1048576, 1 ) . " MB)$deletes." );
 	}
 
 	/**
-	 * Pull de archivos: pide paquetes al remoto y los coloca aquí.
+	 * File pull: requests packages from the remote and places them here.
 	 *
 	 * @param array  $job    Job.
-	 * @param array  $step   Paso.
-	 * @param Budget $budget Tiempo.
+	 * @param array  $step   Step.
+	 * @param Budget $budget Time.
 	 */
 	private function files_pull( array &$job, array $step, Budget $budget ): bool {
 		$root    = $step['root'];
@@ -942,11 +942,11 @@ final class Runner {
 	}
 
 	/**
-	 * Push de archivos: arma paquetes aquí y los envía al remoto.
+	 * File push: builds packages here and sends them to the remote.
 	 *
 	 * @param array  $job    Job.
-	 * @param array  $step   Paso.
-	 * @param Budget $budget Tiempo.
+	 * @param array  $step   Step.
+	 * @param Budget $budget Time.
 	 */
 	private function files_push( array &$job, array $step, Budget $budget ): bool {
 		$root = $step['root'];
@@ -969,7 +969,7 @@ final class Runner {
 					$built['package']
 				);
 			}
-			// El cursor solo avanza cuando el remoto confirmó el paquete.
+			// The cursor only advances once the remote has confirmed the package.
 			$this->record_files( $job, $root, $got, count( $built['missing'] ), $built['bytes'] );
 			$job['cursor'] = $built['cursor'];
 		} while ( null !== $job['cursor'] && ! $budget->exhausted() );
@@ -977,10 +977,10 @@ final class Runner {
 	}
 
 	/**
-	 * Cierre de una carpeta: borrados y cambio de carpetas de código (aquí o en el remoto).
+	 * Finalizes a folder: deletions and swap of code folders (here or on the remote).
 	 *
 	 * @param array  $job  Job.
-	 * @param string $root Carpeta.
+	 * @param string $root Folder.
 	 */
 	private function files_finalize( array &$job, string $root ): void {
 		$deletions = array();
@@ -992,11 +992,11 @@ final class Runner {
 		if ( 'push' !== $job['intent'] ) {
 			$applier = new Applier( $job['site']['roots'], $this->files_dir( $job ) );
 			if ( 'import' === $job['intent'] && Roots::is_code( $root ) ) {
-				$deletions = $applier->leftovers( $root ); // Paquete de sitio: el código queda igual que en el origen.
+				$deletions = $applier->leftovers( $root ); // Site package: the code ends up identical to the source.
 			}
 			$stats = $applier->finalize( $root, $deletions );
 		} else {
-			// ponytail: la lista de borrados viaja entera en una petición; con decenas de miles convendría trocearla.
+			// ponytail: the deletion list travels whole in one request; with tens of thousands it would be worth chunking it.
 			$stats = $this->remote(
 				$job,
 				'files_finalize',
@@ -1008,24 +1008,24 @@ final class Runner {
 			);
 		}
 		foreach ( (array) ( $stats['skipped'] ?? array() ) as $skipped ) {
-			$job['warnings'][] = "Archivos ($root): no se reemplazó $skipped (es un enlace simbólico en el destino).";
+			$job['warnings'][] = "Files ($root): did not replace $skipped (it is a symlink at the destination).";
 		}
 		$sent = $job['file_stats'][ $root ] ?? array();
 		self::log(
 			$job,
-			"Archivos ($root): " . ( $sent['sent'] ?? 0 ) . ' recibidos, ' . (int) ( $stats['replaced'] ?? 0 ) . ' carpetas o archivos de primer nivel cambiados, '
-			. (int) ( $stats['deleted'] ?? 0 ) . ' borrados (a backup).'
+			"Files ($root): " . ( $sent['sent'] ?? 0 ) . ' received, ' . (int) ( $stats['replaced'] ?? 0 ) . ' top-level folders or files swapped, '
+			. (int) ( $stats['deleted'] ?? 0 ) . ' deleted (moved to backup).'
 		);
 	}
 
 	/**
-	 * Cuenta lo enviado y convierte los fallos en advertencias (no detienen el job).
+	 * Counts what was sent and turns failures into warnings (they do not stop the job).
 	 *
 	 * @param array  $job     Job.
-	 * @param string $root    Carpeta.
+	 * @param string $root    Folder.
 	 * @param array  $result  done, partial, failed.
-	 * @param int    $missing Archivos que ya no existían en el origen.
-	 * @param int    $bytes   Bytes de contenido del paquete.
+	 * @param int    $missing Files that no longer existed at the source.
+	 * @param int    $bytes   Content bytes of the package.
 	 */
 	private function record_files( array &$job, string $root, array $result, int $missing, int $bytes ): void {
 		$stats             = &$job['file_stats'][ $root ];
@@ -1035,13 +1035,13 @@ final class Runner {
 		foreach ( (array) $result['failed'] as $file => $reason ) {
 			++$stats['failed'];
 			if ( $stats['failed'] <= 20 ) {
-				$job['warnings'][] = "Archivos ($root): $file — $reason";
+				$job['warnings'][] = "Files ($root): $file — $reason";
 			}
 		}
 	}
 
 	/**
-	 * Carpeta de trabajo de los archivos del job (listas, zona temporal y backup).
+	 * Working folder for the job's files (lists, staging area and backup).
 	 *
 	 * @param array $job Job.
 	 */
@@ -1054,22 +1054,22 @@ final class Runner {
 	}
 
 	/**
-	 * Lista de una carpeta: source, target, send o delete.
+	 * List for a folder: source, target, send or delete.
 	 *
 	 * @param array  $job  Job.
-	 * @param string $root Carpeta.
-	 * @param string $kind Tipo.
+	 * @param string $root Folder.
+	 * @param string $kind Kind.
 	 */
 	private function file_list( array $job, string $root, string $kind ): Manifest {
 		return new Manifest( $this->files_dir( $job ) . "/lists/$root-$kind.jsonl" );
 	}
 
 	/**
-	 * Lista vacía (para escribirla de nuevo).
+	 * Empty list (to be written again).
 	 *
 	 * @param array  $job  Job.
-	 * @param string $root Carpeta.
-	 * @param string $kind Tipo.
+	 * @param string $root Folder.
+	 * @param string $kind Kind.
 	 */
 	private function fresh_list( array $job, string $root, string $kind ): Manifest {
 		$list = $this->file_list( $job, $root, $kind );
@@ -1078,10 +1078,10 @@ final class Runner {
 	}
 
 	/**
-	 * Paquete: agrega el dump .sql.gz en tramos y luego lo borra.
+	 * Package: appends the .sql.gz dump in chunks, then deletes it.
 	 *
 	 * @param array  $job    Job.
-	 * @param Budget $budget Tiempo.
+	 * @param Budget $budget Time.
 	 */
 	private function site_db( array &$job, Budget $budget ): bool {
 		self::rewind( $job['files']['export'], $job['package_size'] );
@@ -1105,16 +1105,16 @@ final class Runner {
 		if ( $offset < $size ) {
 			return false;
 		}
-		self::log( $job, 'Paquete: base de datos incluida (' . number_format( $size / 1048576, 1 ) . ' MB comprimida).' );
+		self::log( $job, 'Package: database included (' . number_format( $size / 1048576, 1 ) . ' MB compressed).' );
 		return true;
 	}
 
 	/**
-	 * Paquete: agrega los archivos de una carpeta.
+	 * Package: appends the files of a folder.
 	 *
 	 * @param array  $job    Job.
-	 * @param array  $step   Paso.
-	 * @param Budget $budget Tiempo.
+	 * @param array  $step   Step.
+	 * @param Budget $budget Time.
 	 */
 	private function site_files( array &$job, array $step, Budget $budget ): bool {
 		$root = $step['root'];
@@ -1142,20 +1142,20 @@ final class Runner {
 			$job['cursor']     = $built['cursor'];
 		} while ( null !== $job['cursor'] && ! $budget->exhausted() );
 		if ( null === $job['cursor'] ) {
-			self::log( $job, "Paquete ($root): archivos incluidos (" . number_format( $job['file_stats'][ $root ]['bytes'] / 1048576, 1 ) . ' MB).' );
+			self::log( $job, "Package ($root): files included (" . number_format( $job['file_stats'][ $root ]['bytes'] / 1048576, 1 ) . ' MB).' );
 			return true;
 		}
 		return false;
 	}
 
 	/**
-	 * Importar un paquete: el dump va a un archivo aparte y los archivos a su lugar (media) o a la
-	 * zona temporal (código), con las mismas protecciones que un pull.
+	 * Imports a package: the dump goes to a separate file and the files to their place (media) or to the
+	 * staging area (code), with the same protections as a pull.
 	 *
 	 * @param array  $job    Job.
-	 * @param Budget $budget Tiempo.
+	 * @param Budget $budget Time.
 	 *
-	 * @throws \RuntimeException Si el paquete no es válido o no trae la base de datos.
+	 * @throws \RuntimeException If the package is invalid or has no database.
 	 */
 	private function site_unpack( array &$job, Budget $budget ): bool {
 		$applier = new Applier( $job['site']['roots'], $this->files_dir( $job ) );
@@ -1166,9 +1166,9 @@ final class Runner {
 			if ( null === $block ) {
 				$job['cursor'] = null;
 				if ( ! is_file( $job['files']['import_gz'] ) ) {
-					throw new \RuntimeException( 'El paquete no trae base de datos.' );
+					throw new \RuntimeException( 'The package contains no database.' );
 				}
-				self::log( $job, 'Paquete desempacado.' );
+				self::log( $job, 'Package unpacked.' );
 				return true;
 			}
 			if ( 'db' === $block['frame']['type'] ) {
@@ -1188,9 +1188,9 @@ final class Runner {
 	}
 
 	/**
-	 * Tamaño actual de un archivo (0 si no existe).
+	 * Current size of a file (0 if it does not exist).
 	 *
-	 * @param string $path Archivo.
+	 * @param string $path File.
 	 */
 	private static function size( string $path ): int {
 		clearstatcache( true, $path );
@@ -1198,11 +1198,11 @@ final class Runner {
 	}
 
 	/**
-	 * Recorta un archivo al tamaño guardado en el cursor: si una petición se cortó después de
-	 * agregar un bloque pero antes de guardar el job, el bloque se agregaría dos veces.
+	 * Truncates a file to the size saved in the cursor: if a request was cut off after
+	 * appending a block but before saving the job, the block would be appended twice.
 	 *
-	 * @param string $path Archivo.
-	 * @param int    $size Tamaño confirmado.
+	 * @param string $path File.
+	 * @param int    $size Confirmed size.
 	 */
 	private static function rewind( string $path, int $size ): void {
 		if ( self::size( $path ) > $size ) {

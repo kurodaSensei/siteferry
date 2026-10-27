@@ -1,6 +1,6 @@
 <?php
 /**
- * Carpetas que se pueden transferir.
+ * Folders that can be transferred.
  *
  * @package Siteferry
  */
@@ -8,30 +8,30 @@
 namespace Siteferry\Files;
 
 /**
- * Raíces conocidas y sus exclusiones por defecto.
+ * Known roots and their default exclusions.
  */
 final class Roots {
 
-	/** Raíces válidas. */
+	/** Valid roots. */
 	public const ALL = array( 'uploads', 'themes', 'plugins', 'mu-plugins' );
 
-	/** Raíces con código: se cambian por carpeta completa y requieren permiso propio para push. */
+	/** Roots with code: swapped by whole folder and require their own permission for push. */
 	public const CODE = array( 'themes', 'plugins', 'mu-plugins' );
 
 	/**
-	 * Si la raíz contiene código.
+	 * Whether the root contains code.
 	 *
-	 * @param string $root Raíz.
+	 * @param string $root Root.
 	 */
 	public static function is_code( string $root ): bool {
 		return in_array( $root, self::CODE, true );
 	}
 
 	/**
-	 * Patrones excluidos por defecto: caches, repositorios, dependencias, backups de otros plugins
-	 * y el propio Siteferry (nunca se reemplaza a sí mismo).
+	 * Patterns excluded by default: caches, repositories, dependencies, other plugins' backups
+	 * and Siteferry itself (it never replaces itself).
 	 *
-	 * @param string $root Raíz.
+	 * @param string $root Root.
 	 * @return list<string>
 	 */
 	public static function exclude( string $root ): array {
@@ -45,15 +45,15 @@ final class Roots {
 	}
 
 	/**
-	 * Si una ruta queda fuera: algún segmento (o la ruta entera) coincide con un patrón, o es un
-	 * archivo a medio recibir. Se mira cada segmento para que "updraft/x.zip" quede fuera aunque
-	 * el patrón sea "updraft". Se compara en minúsculas.
+	 * Whether a path is left out: some segment (or the whole path) matches a pattern, or it is a
+	 * half-received file. Each segment is checked so that "updraft/x.zip" is left out even if
+	 * the pattern is "updraft". Comparison is lowercase.
 	 *
-	 * @param list<string> $patterns Patrones fnmatch.
-	 * @param string       $relative Ruta relativa.
+	 * @param list<string> $patterns fnmatch patterns.
+	 * @param string       $relative Relative path.
 	 */
 	public static function matches( array $patterns, string $relative ): bool {
-		// Sin distinguir mayúsculas: en macOS o Windows "UpDraft/x.zip" es la misma carpeta que "updraft".
+		// Case-insensitive: on macOS or Windows "UpDraft/x.zip" is the same folder as "updraft".
 		$relative = strtolower( $relative );
 		if ( str_ends_with( $relative, Scanner::PART ) ) {
 			return true;

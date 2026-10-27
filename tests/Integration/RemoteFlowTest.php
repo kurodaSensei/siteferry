@@ -1,6 +1,6 @@
 <?php
 /**
- * Pull y push entre dos bases, con el Server real del lado remoto.
+ * Pull and push between two databases, with the real Server on the remote side.
  *
  * @package Siteferry
  */
@@ -21,14 +21,14 @@ final class RemoteFlowTest extends DbTestCase {
 	private const NEW = 'https://new.example';
 
 	/**
-	 * Job del lado remoto (lo que en WordPress guarda JobStore).
+	 * Job on the remote side (what JobStore saves in WordPress).
 	 *
 	 * @var array|null
 	 */
 	private ?array $remote_job = null;
 
 	/**
-	 * Cuántas veces repetir cada push_chunk (simula reintentos tras cortes de red).
+	 * How many times to repeat each push_chunk (simulates retries after network drops).
 	 *
 	 * @var int
 	 */
@@ -42,7 +42,7 @@ final class RemoteFlowTest extends DbTestCase {
 		return $db;
 	}
 
-	/** Sitio "B": destino o remoto, con opciones propias que deben sobrevivir. */
+	/** Site "B": destination or remote, with its own options that must survive. */
 	private function site_b(): Db {
 		$db = $this->seeded( 'wpb_', self::NEW );
 		$db->query( "UPDATE wpb_options SET option_value = '0' WHERE option_name = 'blog_public'" );
@@ -65,7 +65,7 @@ final class RemoteFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Cliente falso: pasa cada mensaje por JSON, como en la red.
+	 * Fake client: passes every message through JSON, as over the network.
 	 */
 	private function client( Server $server ): \Closure {
 		return function ( array $job, string $op, array $args, ?string $binary = null ) use ( $server ): array {
@@ -114,7 +114,7 @@ final class RemoteFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Lo que debe cumplir B después de recibir el sitio A (por pull o por push).
+	 * What B must satisfy after receiving site A (by pull or push).
 	 */
 	private function assert_b_has_site_a( Db $b ): void {
 		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'home' ) );
@@ -137,7 +137,7 @@ final class RemoteFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Agrega carpetas de archivos (y una carpeta de trabajo propia) a los datos de un sitio.
+	 * Adds file folders (and a working folder of its own) to a site's data.
 	 */
 	private function with_files( array $site, string $name ): array {
 		$base = $this->storage . '/' . $name;
@@ -163,7 +163,7 @@ final class RemoteFlowTest extends DbTestCase {
 		file_put_contents( $path, $content );
 	}
 
-	/** @return array<string, string> ruta => md5 */
+	/** @return array<string, string> path => md5 */
 	private function tree( string $dir ): array {
 		$out = array();
 		$it  = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ) );
@@ -205,7 +205,7 @@ final class RemoteFlowTest extends DbTestCase {
 		$this->assertSame( 'solo aquí', file_get_contents( "$backup/uploads/sobra.jpg" ) );
 		$this->assertSame( '<?php // v1', file_get_contents( "$backup/plugins/mi-plugin/mi-plugin.php" ) );
 		$this->assertSame( array(), $job['warnings'] );
-		$this->assertSame( 3, $job['file_stats']['uploads']['send'], 'foto, cambiada y video' );
+		$this->assertSame( 3, $job['file_stats']['uploads']['send'], 'foto, cambiada and video' );
 		$this->assertSame( 3, $job['file_stats']['uploads']['sent'] );
 	}
 
@@ -219,7 +219,7 @@ final class RemoteFlowTest extends DbTestCase {
 		$this->put( 'remote', 'themes/tema/style.css', '/* v1 */' );
 		$this->put( 'remote', 'themes/tema/functions.php', '<?php // se conserva sin delete' );
 
-		$this->chunk_repeats = 2; // Cada paquete llega dos veces.
+		$this->chunk_repeats = 2; // Every package arrives twice.
 		$server              = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true, 'allow_push_code' => true ) );
 		$job                 = Planner::create(
 			'push',
@@ -227,13 +227,13 @@ final class RemoteFlowTest extends DbTestCase {
 			$this->with_files( $this->site( 'wpa_', self::OLD ), 'local' ),
 			new Schema( $local )
 		);
-		$this->assertNotContains( 'push_begin', array_column( $job['steps'], 'type' ), 'sin base de datos' );
+		$this->assertNotContains( 'push_begin', array_column( $job['steps'], 'type' ), 'no database' );
 		$job = $this->run_job( $local, $job, $this->client( $server ) );
 
 		$this->assertSame( '/* v2 */', file_get_contents( "$this->storage/remote/themes/tema/style.css" ) );
 		$this->assertFileExists( "$this->storage/remote/themes/tema/functions.php" );
 		$this->assertSame( 'foto', file_get_contents( "$this->storage/remote/uploads/foto.jpg" ) );
-		$this->assertSame( self::NEW, $this->option( $remote, 'wpb_options', 'home' ), 'la base remota no cambia' );
+		$this->assertSame( self::NEW, $this->option( $remote, 'wpb_options', 'home' ), 'the remote database does not change' );
 		$this->assertSame( '/* v1 */', file_get_contents( "$this->storage/remote/storage/files-{$job['id']}/backup/themes/tema/style.css" ) );
 		$this->assertSame( array(), $job['warnings'] );
 	}
@@ -242,7 +242,7 @@ final class RemoteFlowTest extends DbTestCase {
 		$local  = $this->seeded( 'wpa_', self::OLD );
 		$remote = $this->site_b();
 		$server = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
-		$this->expectExceptionMessage( 'push de código' );
+		$this->expectExceptionMessage( 'code push' );
 		Planner::create(
 			'push',
 			$this->remote_input( $server, array( 'files' => array( 'plugins' ) ) ),
@@ -261,8 +261,8 @@ final class RemoteFlowTest extends DbTestCase {
 
 		$this->assert_b_has_site_a( $local );
 		$this->assertFileExists( $job['files']['backup'] );
-		$this->assertArrayNotHasKey( 'key', $job['remote'], 'la clave del otro sitio no queda guardada' );
-		$this->assertSame( self::OLD, $this->option( $remote, 'wpa_options', 'home' ), 'el remoto no cambia' );
+		$this->assertArrayNotHasKey( 'key', $job['remote'], 'the other site\'s key is not stored' );
+		$this->assertSame( self::OLD, $this->option( $remote, 'wpa_options', 'home' ), 'the remote does not change' );
 	}
 
 	public function test_push_sends_this_site_to_the_remote_even_with_retries(): void {
@@ -270,7 +270,7 @@ final class RemoteFlowTest extends DbTestCase {
 		$remote = $this->site_b();
 		$server = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
 
-		$this->chunk_repeats = 2; // Cada trozo llega dos veces: no debe duplicar filas.
+		$this->chunk_repeats = 2; // Every chunk arrives twice: it must not duplicate rows.
 		$job                 = Planner::create( 'push', $this->remote_input( $server ), $this->site( 'wpa_', self::OLD ), new Schema( $local ) );
 		$job                 = $this->run_job( $local, $job, $this->client( $server ) );
 
@@ -279,9 +279,9 @@ final class RemoteFlowTest extends DbTestCase {
 			$this->assertSame( $local->value( "SELECT COUNT(*) FROM wpa_$table" ), $remote->value( "SELECT COUNT(*) FROM wpb_$table" ) . '', $table );
 		}
 		$this->assertSame( 'done', $this->remote_job['status'] );
-		$this->assertFileExists( $this->remote_job['files']['backup'], 'el backup se hace en el remoto' );
-		$this->assertArrayNotHasKey( 'backup', $job['files'], 'y no en este sitio' );
-		$this->assertSame( self::OLD, $this->option( $local, 'wpa_options', 'home' ), 'este sitio no cambia' );
+		$this->assertFileExists( $this->remote_job['files']['backup'], 'the backup is made on the remote' );
+		$this->assertArrayNotHasKey( 'backup', $job['files'], 'and not on this site' );
+		$this->assertSame( self::OLD, $this->option( $local, 'wpa_options', 'home' ), 'this site does not change' );
 	}
 
 	public function test_remote_permissions_are_required(): void {
@@ -291,32 +291,32 @@ final class RemoteFlowTest extends DbTestCase {
 
 		try {
 			Planner::create( 'pull', $this->remote_input( $server ), $this->site( 'wpb_', self::NEW ), new Schema( $local ) );
-			$this->fail( 'Debió rechazar el pull.' );
+			$this->fail( 'Should have rejected the pull.' );
 		} catch ( \InvalidArgumentException $e ) {
-			$this->assertStringContainsString( 'no permite pull', $e->getMessage() );
+			$this->assertStringContainsString( 'does not allow pull', $e->getMessage() );
 		}
-		// Aunque alguien se salte el Planner, el servidor también lo comprueba.
-		$this->expectExceptionMessage( 'no permite pull' );
+		// Even if someone bypasses the Planner, the server checks it too.
+		$this->expectExceptionMessage( 'does not allow pull' );
 		$server->handle( 'pull_rows', array( 'table' => 'wpa_options', 'target' => '_sft_wpb_options' ) );
 	}
 
 	public function test_push_finish_cannot_touch_other_tables_or_run_extra_sql(): void {
 		$remote = $this->site_b();
-		$remote->query( 'CREATE TABLE otra_app_usuarios (id INT PRIMARY KEY)' ); // Otra aplicación en la misma base.
+		$remote->query( 'CREATE TABLE otra_app_usuarios (id INT PRIMARY KEY)' ); // Another application in the same database.
 		$server = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
 		$id     = $server->handle( 'push_begin', array() )['id'];
 		for ( $i = 0; $i < 20 && ! $server->handle( 'push_step', array( 'id' => $id ) )['ready']; $i++ ) {
-			// Hasta que espere datos.
+			// Until it waits for data.
 		}
 		$fk  = 'CONSTRAINT `fk` FOREIGN KEY (`p`) REFERENCES `wpa_parent` (`id`)';
 		$bad = array(
-			'tabla de otra aplicación'      => array( 'swap' => array( '_sft_otra_app_usuarios' => 'otra_app_usuarios' ) ),
-			'temporal de otra tabla'        => array( 'swap' => array( '_sft_wpb_posts' => 'wpb_options' ) ),
-			'SQL extra en la llave foránea' => array(
+			'table of another application'    => array( 'swap' => array( '_sft_otra_app_usuarios' => 'otra_app_usuarios' ) ),
+			'temp table of another table'    => array( 'swap' => array( '_sft_wpb_posts' => 'wpb_options' ) ),
+			'extra SQL in the foreign key'   => array(
 				'swap' => array( '_sft_wpb_child' => 'wpb_child' ),
 				'fks'  => array( array( 'table' => 'wpb_child', 'clause' => $fk . ', RENAME TO otra_base.wpb_child' ) ),
 			),
-			'referencia fuera del prefijo'  => array(
+			'reference outside the prefix'   => array(
 				'swap' => array( '_sft_wpb_child' => 'wpb_child' ),
 				'fks'  => array( array( 'table' => 'wpb_child', 'clause' => str_replace( 'wpa_parent', 'otra_app_usuarios', $fk ) ) ),
 			),
@@ -324,9 +324,9 @@ final class RemoteFlowTest extends DbTestCase {
 		foreach ( $bad as $case => $args ) {
 			try {
 				$server->handle( 'push_finish', array( 'id' => $id ) + $args );
-				$this->fail( 'Debió rechazar: ' . $case );
+				$this->fail( 'Should have rejected: ' . $case );
 			} catch ( \RuntimeException $e ) {
-				$this->assertMatchesRegularExpression( '/inválid/', $e->getMessage(), $case );
+				$this->assertMatchesRegularExpression( '/Invalid/', $e->getMessage(), $case );
 			}
 		}
 
@@ -348,8 +348,8 @@ final class RemoteFlowTest extends DbTestCase {
 		$job = Planner::create( 'pull', $this->remote_input( $server ), $this->site( 'wpb_', self::NEW ), new Schema( $local ) );
 		$job = ( new Runner( $local, $evil ) )->step( $job, new Budget( 30 ) );
 		$this->assertSame( 'failed', $job['status'] );
-		$this->assertStringContainsString( 'llave foránea inválida', (string) $job['error'] );
-		$this->assertSame( self::NEW, $this->option( $local, 'wpb_options', 'home' ), 'este sitio no cambió' );
+		$this->assertStringContainsString( 'invalid foreign key', (string) $job['error'] );
+		$this->assertSame( self::NEW, $this->option( $local, 'wpb_options', 'home' ), 'this site did not change' );
 	}
 
 	public function test_push_only_writes_temporary_tables(): void {
@@ -357,17 +357,17 @@ final class RemoteFlowTest extends DbTestCase {
 		$server = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
 		$id     = $server->handle( 'push_begin', array() )['id'];
 		for ( $i = 0; $i < 20 && ! $server->handle( 'push_step', array( 'id' => $id ) )['ready']; $i++ ) {
-			// Hasta que espere datos.
+			// Until it waits for data.
 		}
 
 		foreach ( array( 'DROP TABLE IF EXISTS `wpb_posts`', 'INSERT INTO `wpb_options` (option_name) VALUES (1)', 'CREATE TABLE `_sft_x`AS SELECT 1; DROP TABLE wpb_posts', 'DROP TABLE IF EXISTS `_sft_x`, `wpb_posts`', 'DROP TABLE IF EXISTS `_sft_x` , `wpb_posts`', 'INSERT INTO `_sft_x` (`a`) SELECT * FROM wpb_posts' ) as $sql ) {
 			try {
 				$server->handle( 'push_chunk', array( 'id' => $id, 'seq' => 1, 'statements' => MemorySink::encode( array( $sql ) ) ) );
-				$this->fail( 'Debió rechazar: ' . $sql );
+				$this->fail( 'Should have rejected: ' . $sql );
 			} catch ( \RuntimeException $e ) {
 				$this->assertNotSame( '', $e->getMessage() );
 			}
 		}
-		$this->assertSame( '3', $remote->value( 'SELECT COUNT(*) FROM wpb_posts' ), 'las tablas vivas siguen intactas' );
+		$this->assertSame( '3', $remote->value( 'SELECT COUNT(*) FROM wpb_posts' ), 'the live tables are still intact' );
 	}
 }

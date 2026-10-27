@@ -1,6 +1,6 @@
 <?php
 /**
- * Pruebas de la firma entre sitios.
+ * Tests for the signature between sites.
  *
  * @package Siteferry
  */
@@ -46,7 +46,7 @@ final class SignerTest extends TestCase {
 		foreach ( array( 'https://sitio.com', 'sitio.com ' . self::KEY, 'https://sitio.com corta', 'https://a.com ' . self::KEY . ' extra', 'http://sitio.com ' . self::KEY, 'http://8.8.8.8 ' . self::KEY ) as $bad ) {
 			try {
 				Signer::parse_connection( $bad );
-				$this->fail( 'Debió rechazar: ' . $bad );
+				$this->fail( 'Should have rejected: ' . $bad );
 			} catch ( \InvalidArgumentException $e ) {
 				$this->assertMatchesRegularExpression( '/URL|https/', $e->getMessage() );
 			}

@@ -1,0 +1,525 @@
+# Copyright (C) 2026 Kuroda Sensei
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Siteferry 0.4.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/siteferry\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-10-27T14:36:54+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: siteferry\n"
+
+#. Plugin Name of the plugin
+#: siteferry.php
+msgid "Siteferry"
+msgstr ""
+
+#. Description of the plugin
+#: siteferry.php
+msgid "Export, import and search-replace the WordPress database safely across serialized data, and move databases and files between sites."
+msgstr ""
+
+#. Author of the plugin
+#: siteferry.php
+msgid "Kuroda Sensei"
+msgstr ""
+
+#: src/Admin/Page.php:70
+msgid "Action"
+msgstr ""
+
+#: src/Admin/Page.php:73
+#: assets/siteferry.js:34
+msgid "Export"
+msgstr ""
+
+#: src/Admin/Page.php:74
+msgid "Download the database as a .sql.gz, with optional replacements for the destination site."
+msgstr ""
+
+#: src/Admin/Page.php:78
+#: assets/siteferry.js:35
+msgid "Search and replace"
+msgstr ""
+
+#: src/Admin/Page.php:79
+msgid "Change text on this site, including inside serialized data and JSON."
+msgstr ""
+
+#: src/Admin/Page.php:83
+#: assets/siteferry.js:36
+msgid "Import"
+msgstr ""
+
+#: src/Admin/Page.php:84
+msgid "Replace this site’s database with one from a .sql or .sql.gz file."
+msgstr ""
+
+#: src/Admin/Page.php:88
+#: assets/siteferry.js:37
+msgid "Pull"
+msgstr ""
+
+#: src/Admin/Page.php:89
+msgid "Bring another site’s database here and replace this one."
+msgstr ""
+
+#: src/Admin/Page.php:93
+#: assets/siteferry.js:38
+msgid "Push"
+msgstr ""
+
+#: src/Admin/Page.php:94
+msgid "Send this site’s database to another site and replace the one there."
+msgstr ""
+
+#: src/Admin/Page.php:99
+msgid "Remote site"
+msgstr ""
+
+#: src/Admin/Page.php:101
+msgid "Copy the connection info from Tools → Siteferry on the other site."
+msgstr ""
+
+#: src/Admin/Page.php:102
+msgid "Connect"
+msgstr ""
+
+#: src/Admin/Page.php:106
+msgid "What to transfer"
+msgstr ""
+
+#: src/Admin/Page.php:107
+msgid "Database"
+msgstr ""
+
+#: src/Admin/Page.php:108
+#: src/Admin/Page.php:118
+msgid "Media (uploads)"
+msgstr ""
+
+#: src/Admin/Page.php:109
+#: src/Admin/Page.php:119
+msgid "Themes"
+msgstr ""
+
+#: src/Admin/Page.php:110
+#: src/Admin/Page.php:120
+msgid "Plugins"
+msgstr ""
+
+#: src/Admin/Page.php:111
+#: src/Admin/Page.php:121
+msgid "Must-use plugins (mu-plugins)"
+msgstr ""
+
+#: src/Admin/Page.php:112
+msgid "Delete files on the destination that don’t exist on the source (kept in a backup for 7 days)"
+msgstr ""
+
+#: src/Admin/Page.php:113
+msgid "Only what changed is transferred. Themes and plugins are swapped as whole folders at the end, and Siteferry never replaces itself. For a push, the other site must allow “code push” for themes and plugins."
+msgstr ""
+
+#: src/Admin/Page.php:117
+msgid "Include files (full-site .sfy package)"
+msgstr ""
+
+#: src/Admin/Page.php:122
+msgid "Without files you get the database (.sql.gz). With files, a .sfy package with everything, which you import on another site with Siteferry."
+msgstr ""
+
+#: src/Admin/Page.php:126
+msgid "File"
+msgstr ""
+
+#: src/Admin/Page.php:128
+msgid "A mysqldump or phpMyAdmin dump, a .sql.gz export, or a Siteferry .sfy site package. The table prefix and the source site URL are detected automatically."
+msgstr ""
+
+#: src/Admin/Page.php:130
+msgid "Table prefix in the file (optional)"
+msgstr ""
+
+#: src/Admin/Page.php:132
+msgid "Only needed if the file holds several WordPress installs; the plugin will tell you."
+msgstr ""
+
+#: src/Admin/Page.php:137
+msgid "Replacements"
+msgstr ""
+
+#: src/Admin/Page.php:139
+#: src/Admin/Page.php:142
+msgid "Find"
+msgstr ""
+
+#: src/Admin/Page.php:139
+#: src/Admin/Page.php:143
+msgid "Replace with"
+msgstr ""
+
+#: src/Admin/Page.php:139
+msgid "Remove"
+msgstr ""
+
+#: src/Admin/Page.php:144
+msgid "Remove pair"
+msgstr ""
+
+#: src/Admin/Page.php:148
+msgid "Add pair"
+msgstr ""
+
+#: src/Admin/Page.php:150
+msgid "Automatically replace the source site URL with the destination URL"
+msgstr ""
+
+#: src/Admin/Page.php:151
+msgid "Case sensitive"
+msgstr ""
+
+#: src/Admin/Page.php:152
+msgid "Regular expressions (PCRE with delimiters, e.g. #https?://old\\.test#)"
+msgstr ""
+
+#: src/Admin/Page.php:153
+msgid "Also replace in guid (usually you should not)"
+msgstr ""
+
+#. translators: %d: number of tables
+#: src/Admin/Page.php:158
+#: assets/siteferry.js:81
+#, php-format,js-format
+msgid "Tables (%d)"
+msgstr ""
+
+#. translators: %d: number of tables
+#: src/Admin/Page.php:159
+msgid "Select / deselect all"
+msgstr ""
+
+#: src/Admin/Page.php:168
+msgid "Back up the destination database first (kept for 7 days)"
+msgstr ""
+
+#: src/Admin/Page.php:171
+msgid "Start"
+msgstr ""
+
+#: src/Admin/Page.php:181
+msgid "Resume"
+msgstr ""
+
+#: src/Admin/Page.php:182
+msgid "Cancel"
+msgstr ""
+
+#: src/Admin/Page.php:183
+msgid "New operation"
+msgstr ""
+
+#: src/Admin/Page.php:185
+msgid "Log"
+msgstr ""
+
+#: src/Admin/Page.php:189
+msgid "Undo the last operation"
+msgstr ""
+
+#: src/Admin/Page.php:191
+#: assets/siteferry.js:39
+msgid "Undo"
+msgstr ""
+
+#: src/Admin/Page.php:195
+msgid "This site’s connection"
+msgstr ""
+
+#: src/Admin/Page.php:196
+msgid "Paste this on the other site to pull from or push to this one. Anyone with the key can read or replace this database, depending on the permissions below: treat it like a password."
+msgstr ""
+
+#: src/Admin/Page.php:199
+msgid "Copy"
+msgstr ""
+
+#: src/Admin/Page.php:200
+msgid "Regenerate key"
+msgstr ""
+
+#: src/Admin/Page.php:203
+msgid "Permissions"
+msgstr ""
+
+#: src/Admin/Page.php:204
+msgid "Allow pull: other sites can read this database"
+msgstr ""
+
+#: src/Admin/Page.php:205
+msgid "Allow file pull: other sites can read media, themes and plugins (including their code)"
+msgstr ""
+
+#: src/Admin/Page.php:206
+msgid "Allow push: other sites can replace this database"
+msgstr ""
+
+#: src/Admin/Page.php:207
+msgid "Allow code push: other sites can replace this site’s themes and plugins"
+msgstr ""
+
+#: src/Admin/Page.php:208
+msgid "Verify the HTTPS certificate when connecting to other sites (turn off only for local development)"
+msgstr ""
+
+#: src/Admin/Page.php:227
+#: assets/siteferry.js:426
+msgid "database"
+msgstr ""
+
+#: src/Admin/Page.php:230
+#: assets/siteferry.js:426
+msgid "files"
+msgstr ""
+
+#. translators: 1: operation, 2: date, 3: what gets restored
+#: src/Admin/Page.php:233
+#: assets/siteferry.js:428
+#, php-format,js-format
+msgid "%1$s · %2$s · restores: %3$s."
+msgstr ""
+
+#: src/Http/RestController.php:93
+msgid "The uploaded file was not found."
+msgstr ""
+
+#: src/Http/RestController.php:178
+msgid "Another step is in progress."
+msgstr ""
+
+#: src/Http/RestController.php:199
+msgid "A step is in progress; try again."
+msgstr ""
+
+#: src/Http/RestController.php:226
+msgid "The file is not available."
+msgstr ""
+
+#: src/Http/RestController.php:258
+msgid "Only .sql, .sql.gz or .sfy files are accepted."
+msgstr ""
+
+#: src/Http/RestController.php:261
+msgid "The file chunk did not arrive."
+msgstr ""
+
+#: src/Http/RestController.php:268
+msgid "The chunk is out of order."
+msgstr ""
+
+#: src/Http/RestController.php:299
+msgid "That operation no longer exists."
+msgstr ""
+
+#: src/Plugin.php:134
+msgid "Another operation is already in progress."
+msgstr ""
+
+#: src/Plugin.php:137
+msgid "Unknown action."
+msgstr ""
+
+#: src/Plugin.php:141
+msgid "There is nothing to undo."
+msgstr ""
+
+#. translators: %s: Siteferry version on the remote site
+#: src/Plugin.php:164
+#, php-format
+msgid "The remote site runs a different Siteferry version (%s). Update both."
+msgstr ""
+
+#. translators: 1: first item, 2: second item
+#: assets/siteferry.js:18
+#, js-format
+msgid "%1$s and %2$s"
+msgstr ""
+
+#: assets/siteferry.js:27
+msgid "Queued…"
+msgstr ""
+
+#: assets/siteferry.js:28
+msgid "Working…"
+msgstr ""
+
+#: assets/siteferry.js:29
+msgid "Done"
+msgstr ""
+
+#: assets/siteferry.js:30
+msgid "Failed"
+msgstr ""
+
+#: assets/siteferry.js:31
+msgid "Cancelled"
+msgstr ""
+
+#: assets/siteferry.js:77
+msgid "Connect to the remote site to see its tables."
+msgstr ""
+
+#: assets/siteferry.js:104
+msgid "Connecting…"
+msgstr ""
+
+#: assets/siteferry.js:108
+msgid "nothing (enable it there)"
+msgstr ""
+
+#: assets/siteferry.js:109
+msgid "yes"
+msgstr ""
+
+#: assets/siteferry.js:109
+msgid "no"
+msgstr ""
+
+#. translators: 1: remote URL, 2: table prefix, 3: number of tables, 4: allowed operations, 5: file pull yes/no, 6: code push yes/no
+#: assets/siteferry.js:112
+#, js-format
+msgid "Connected to %1$s · prefix %2$s · %3$d tables · allows %4$s · file pull: %5$s · code push: %6$s."
+msgstr ""
+
+#: assets/siteferry.js:121
+msgid "Could not connect."
+msgstr ""
+
+#: assets/siteferry.js:195
+msgid "Enter at least one text to find."
+msgstr ""
+
+#: assets/siteferry.js:200
+msgid "Choose the file to import."
+msgstr ""
+
+#: assets/siteferry.js:202
+msgid "This site’s database will be replaced with the one in the file. Continue?"
+msgstr ""
+
+#: assets/siteferry.js:210
+msgid "This site’s data will be modified. Continue?"
+msgstr ""
+
+#: assets/siteferry.js:214
+msgid "Paste the other site’s connection info."
+msgstr ""
+
+#: assets/siteferry.js:217
+msgid "Choose the database, files, or both."
+msgstr ""
+
+#: assets/siteferry.js:221
+msgid "The other site does not allow file pulls. Enable it there or clear the file checkboxes."
+msgstr ""
+
+#: assets/siteferry.js:224
+msgid "The other site does not allow code pushes (themes and plugins). Enable it there or clear those checkboxes."
+msgstr ""
+
+#: assets/siteferry.js:226
+msgid "the other site"
+msgstr ""
+
+#: assets/siteferry.js:228
+msgid "the database"
+msgstr ""
+
+#. translators: %s: list of folders
+#: assets/siteferry.js:230
+#, js-format
+msgid "files (%s)"
+msgstr ""
+
+#. translators: 1: what gets replaced, 2: other site URL
+#: assets/siteferry.js:235
+#, js-format
+msgid "%1$s on THIS site will be replaced with the ones from %2$s. Continue?"
+msgstr ""
+
+#. translators: 1: what gets replaced, 2: other site URL
+#: assets/siteferry.js:241
+#, js-format
+msgid "%1$s on %2$s will be replaced with the ones from this site. Continue?"
+msgstr ""
+
+#: assets/siteferry.js:261
+msgid "Uploading file…"
+msgstr ""
+
+#. translators: 1: bytes uploaded, 2: file size
+#: assets/siteferry.js:276
+#, js-format
+msgid "%1$s of %2$s"
+msgstr ""
+
+#: assets/siteferry.js:333
+msgid "The site’s tables were not modified; “Cancel” cleans up the temporary data."
+msgstr ""
+
+#: assets/siteferry.js:340
+msgid "Done. If you were logged out, log in again with a user from the source site."
+msgstr ""
+
+#. translators: 1: file name, 2: file size
+#: assets/siteferry.js:350
+#, js-format
+msgid "Download (%1$s, %2$s)"
+msgstr ""
+
+#. translators: 1: file name, 2: file size
+#: assets/siteferry.js:351
+#, js-format
+msgid "Download backup (%1$s, %2$s)"
+msgstr ""
+
+#: assets/siteferry.js:385
+msgid "Unknown error."
+msgstr ""
+
+#: assets/siteferry.js:391
+msgid "You can resume once it is fixed."
+msgstr ""
+
+#: assets/siteferry.js:403
+msgid "Cancel the operation? Temporary tables and files will be deleted."
+msgstr ""
+
+#: assets/siteferry.js:432
+msgid "The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone. Continue?"
+msgstr ""
+
+#: assets/siteferry.js:452
+msgid "Saved."
+msgstr ""
+
+#: assets/siteferry.js:455
+msgid "Could not save."
+msgstr ""
+
+#: assets/siteferry.js:465
+msgid "Copied."
+msgstr ""
+
+#: assets/siteferry.js:468
+msgid "Sites using the current key will no longer be able to connect. Regenerate?"
+msgstr ""
+
+#: assets/siteferry.js:473
+msgid "New key generated."
+msgstr ""

@@ -17,14 +17,14 @@ use Siteferry\Support\Storage;
 use Siteferry\Support\UndoPoint;
 
 /**
- * Rutas `siteferry/v1`. Todas exigen manage_options; el nonce lo valida la REST de WordPress.
+ * `siteferry/v1` routes. All require manage_options; the WordPress REST API checks the nonce.
  */
 final class RestController {
 
 	private const NS = 'siteferry/v1';
 
 	/**
-	 * Registra las rutas.
+	 * Registers the routes.
 	 */
 	public static function register(): void {
 		$routes = array(
@@ -54,7 +54,7 @@ final class RestController {
 	}
 
 	/**
-	 * Tablas del sitio.
+	 * Site tables.
 	 */
 	public static function tables(): \WP_REST_Response {
 		global $wpdb;
@@ -62,9 +62,9 @@ final class RestController {
 	}
 
 	/**
-	 * Crea un job.
+	 * Creates a job.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function create( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$intent = (string) $request->get_param( 'intent' );
@@ -90,7 +90,7 @@ final class RestController {
 		if ( 'import' === $intent ) {
 			$path = Storage::upload_path( (string) $request->get_param( 'upload' ), (string) $request->get_param( 'ext' ) );
 			if ( ! $path || ! is_file( $path ) ) {
-				return new \WP_Error( 'siteferry_upload', __( 'No se encontró el archivo subido.', 'siteferry' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'siteferry_upload', __( 'The uploaded file was not found.', 'siteferry' ), array( 'status' => 400 ) );
 			}
 			$input['file']       = $path;
 			$input['file_owned'] = true;
@@ -105,9 +105,9 @@ final class RestController {
 	}
 
 	/**
-	 * Prueba la conexión con otro sitio y devuelve sus datos (para elegir tablas).
+	 * Tests the connection to another site and returns its data (to choose tables).
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function hello( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		try {
@@ -119,9 +119,9 @@ final class RestController {
 	}
 
 	/**
-	 * Lee o guarda los ajustes de conexión de este sitio.
+	 * Reads or saves this site's connection settings.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function settings( \WP_REST_Request $request ): \WP_REST_Response {
 		if ( 'POST' === $request->get_method() ) {
@@ -131,9 +131,9 @@ final class RestController {
 	}
 
 	/**
-	 * Punto de deshacer (GET) o empezar a deshacer (POST).
+	 * Undo point (GET) or start undoing (POST).
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function undo( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		if ( 'GET' === $request->get_method() ) {
@@ -147,7 +147,7 @@ final class RestController {
 	}
 
 	/**
-	 * Genera una clave nueva.
+	 * Generates a new key.
 	 */
 	public static function regenerate_key(): \WP_REST_Response {
 		Settings::regenerate();
@@ -155,16 +155,16 @@ final class RestController {
 	}
 
 	/**
-	 * Job actual (para retomar al recargar la página).
+	 * Current job (to resume after reloading the page).
 	 */
 	public static function current(): \WP_REST_Response {
 		return new \WP_REST_Response( Plugin::view( JobStore::get() ) );
 	}
 
 	/**
-	 * Avanza el job.
+	 * Advances the job.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function step( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$job = self::job( $request );
@@ -175,7 +175,7 @@ final class RestController {
 			return new \WP_REST_Response( Plugin::view( $job ) );
 		}
 		if ( ! JobStore::lock() ) {
-			return new \WP_Error( 'siteferry_locked', __( 'Otro paso está en curso.', 'siteferry' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'siteferry_locked', __( 'Another step is in progress.', 'siteferry' ), array( 'status' => 409 ) );
 		}
 		try {
 			$job = Plugin::run_step( JobStore::get() ?? $job, Plugin::step_seconds() );
@@ -186,9 +186,9 @@ final class RestController {
 	}
 
 	/**
-	 * Cancela el job.
+	 * Cancels the job.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function cancel( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$job = self::job( $request );
@@ -196,7 +196,7 @@ final class RestController {
 			return $job;
 		}
 		if ( ! JobStore::lock( 30 ) ) {
-			return new \WP_Error( 'siteferry_locked', __( 'Hay un paso en curso; inténtalo de nuevo.', 'siteferry' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'siteferry_locked', __( 'A step is in progress; try again.', 'siteferry' ), array( 'status' => 409 ) );
 		}
 		try {
 			$job = JobStore::get() ?? $job;
@@ -211,9 +211,9 @@ final class RestController {
 	}
 
 	/**
-	 * Descarga la exportación o el backup.
+	 * Downloads the export or the backup.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function download( \WP_REST_Request $request ): \WP_Error {
 		$job = self::job( $request );
@@ -223,7 +223,7 @@ final class RestController {
 		$key   = 'backup' === $request->get_param( 'file' ) ? 'backup' : 'export';
 		$files = Plugin::view( $job )['files'];
 		if ( ! isset( $files[ $key ] ) ) {
-			return new \WP_Error( 'siteferry_file', __( 'El archivo no está disponible.', 'siteferry' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'siteferry_file', __( 'The file is not available.', 'siteferry' ), array( 'status' => 404 ) );
 		}
 		$path = $job['files'][ $key ];
 		while ( ob_get_level() ) {
@@ -238,9 +238,9 @@ final class RestController {
 	}
 
 	/**
-	 * Recibe un trozo de un .sql / .sql.gz / .sfy. El cliente manda los trozos en orden con su offset.
+	 * Receives a chunk of a .sql / .sql.gz / .sfy file. The client sends chunks in order with their offset.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function upload( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
 		$name = strtolower( (string) $request->get_param( 'name' ) );
@@ -255,17 +255,17 @@ final class RestController {
 		$path  = Storage::upload_path( $token, $ext );
 		$chunk = $request->get_file_params()['chunk'] ?? null;
 		if ( ! $path ) {
-			return new \WP_Error( 'siteferry_upload', __( 'Solo se aceptan archivos .sql, .sql.gz o .sfy.', 'siteferry' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'siteferry_upload', __( 'Only .sql, .sql.gz or .sfy files are accepted.', 'siteferry' ), array( 'status' => 400 ) );
 		}
 		if ( ! $chunk || UPLOAD_ERR_OK !== $chunk['error'] || ! is_uploaded_file( $chunk['tmp_name'] ) ) {
-			return new \WP_Error( 'siteferry_upload', __( 'No llegó el trozo del archivo.', 'siteferry' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'siteferry_upload', __( 'The file chunk did not arrive.', 'siteferry' ), array( 'status' => 400 ) );
 		}
 		$size   = is_file( $path ) ? (int) filesize( $path ) : 0;
 		$offset = (int) $request->get_param( 'offset' );
 		if ( $offset !== $size ) {
 			return new \WP_Error(
 				'siteferry_offset',
-				__( 'El trozo no está en orden.', 'siteferry' ),
+				__( 'The chunk is out of order.', 'siteferry' ),
 				array(
 					'status' => 409,
 					'size'   => $size,
@@ -289,14 +289,14 @@ final class RestController {
 	}
 
 	/**
-	 * Job guardado si coincide con el id de la ruta.
+	 * The stored job, if it matches the route id.
 	 *
-	 * @param \WP_REST_Request $request Petición.
+	 * @param \WP_REST_Request $request Request.
 	 */
 	private static function job( \WP_REST_Request $request ): array|\WP_Error {
 		$job = JobStore::get();
 		if ( ! $job || $job['id'] !== $request->get_param( 'id' ) ) {
-			return new \WP_Error( 'siteferry_job', __( 'Esa operación ya no existe.', 'siteferry' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'siteferry_job', __( 'That operation no longer exists.', 'siteferry' ), array( 'status' => 404 ) );
 		}
 		return $job;
 	}

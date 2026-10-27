@@ -1,6 +1,6 @@
 <?php
 /**
- * Buscar y reemplazar seguro para valores de columna.
+ * Safe search-replace for column values.
  *
  * @package Siteferry
  */
@@ -8,26 +8,26 @@
 namespace Siteferry\Engine;
 
 /**
- * Reemplaza en texto plano, en datos serializados de PHP y en JSON.
+ * Replaces in plain text, in PHP serialized data and in JSON.
  *
- * Los serializados se recorren como texto y se recalculan las longitudes de cada
- * string: nunca se deserializa, así que no se instancian objetos y los float,
- * referencias y clases desconocidas quedan exactamente como estaban.
- * Un valor solo se reescribe si algo cambió.
+ * Serialized data is walked as text and the length of every string is
+ * recalculated: it is never unserialized, so no objects are instantiated and
+ * floats, references and unknown classes are left exactly as they were.
+ * A value is only rewritten if something changed.
  */
 final class Replacer {
 
 	private const MAX_DEPTH = 32;
 
 	/**
-	 * Textos a buscar.
+	 * Strings to search for.
 	 *
 	 * @var list<string>
 	 */
 	private array $search = array();
 
 	/**
-	 * Reemplazos, en el mismo orden que $search.
+	 * Replacements, in the same order as $search.
 	 *
 	 * @var list<string>
 	 */
@@ -36,9 +36,9 @@ final class Replacer {
 	/**
 	 * Constructor.
 	 *
-	 * @param array<int, array{0: string, 1: string}> $pairs          Pares [buscar, reemplazar].
-	 * @param bool                                    $case_sensitive Distinguir mayúsculas (sin regex).
-	 * @param bool                                    $regex          Los "buscar" son patrones PCRE completos (con delimitadores).
+	 * @param array<int, array{0: string, 1: string}> $pairs          [search, replace] pairs.
+	 * @param bool                                    $case_sensitive Match case (non-regex only).
+	 * @param bool                                    $regex          The "search" values are complete PCRE patterns (with delimiters).
 	 */
 	public function __construct( array $pairs, private bool $case_sensitive = false, private bool $regex = false ) {
 		foreach ( $pairs as [ $find, $to ] ) {
@@ -48,7 +48,7 @@ final class Replacer {
 			$this->search[]  = $find;
 			$this->replace[] = $to;
 			if ( ! $regex && str_contains( $find, '/' ) ) {
-				// La misma URL escapada como en JSON (https:\/\/…), p. ej. en atributos de bloques.
+				// The same URL escaped as in JSON (https:\/\/…), e.g. in block attributes.
 				$this->search[]  = str_replace( '/', '\/', $find );
 				$this->replace[] = str_replace( '/', '\/', $to );
 			}
@@ -56,16 +56,16 @@ final class Replacer {
 	}
 
 	/**
-	 * Si no hay nada que reemplazar.
+	 * Whether there is nothing to replace.
 	 */
 	public function is_empty(): bool {
 		return ! $this->search;
 	}
 
 	/**
-	 * Reemplaza en un valor de columna.
+	 * Replaces in a column value.
 	 *
-	 * @param string $value Valor tal como sale de la base de datos.
+	 * @param string $value Value as it comes out of the database.
 	 */
 	public function value( string $value ): string {
 		if ( ! $this->search || ( ! $this->regex && ! $this->may_match( $value ) ) ) {
@@ -75,13 +75,13 @@ final class Replacer {
 	}
 
 	/**
-	 * Descarte rápido: casi ningún valor contiene lo que se busca.
+	 * Quick rejection: almost no value contains what is being searched for.
 	 *
-	 * @param string $value Valor.
+	 * @param string $value Value.
 	 */
 	private function may_match( string $value ): bool {
 		if ( str_contains( $value, '\\u' ) ) {
-			return true; // JSON con escapes unicode: hay que decodificar para saberlo.
+			return true; // JSON with unicode escapes: it has to be decoded to know.
 		}
 		foreach ( $this->search as $find ) {
 			if ( false !== ( $this->case_sensitive ? strpos( $value, $find ) : stripos( $value, $find ) ) ) {
@@ -92,10 +92,10 @@ final class Replacer {
 	}
 
 	/**
-	 * Decide si el valor es serializado, JSON o texto.
+	 * Decides whether the value is serialized data, JSON or text.
 	 *
-	 * @param string $value Valor.
-	 * @param int    $depth Profundidad de anidamiento (serializado dentro de serializado…).
+	 * @param string $value Value.
+	 * @param int    $depth Nesting depth (serialized inside serialized…).
 	 */
 	private function any( string $value, int $depth ): string {
 		if ( $depth > self::MAX_DEPTH ) {
@@ -109,16 +109,16 @@ final class Replacer {
 					return $out;
 				}
 			} catch ( \UnexpectedValueException ) { // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
-				// Serializado inválido (p. ej. longitudes ya rotas): se trata como texto.
+				// Invalid serialized data (e.g. lengths already broken): treated as text.
 			}
 		}
 		return $this->json( $value, $depth ) ?? $this->text( $value );
 	}
 
 	/**
-	 * Comprobación barata antes de intentar recorrer el serializado.
+	 * Cheap check before attempting to walk the serialized data.
 	 *
-	 * @param string $value Valor.
+	 * @param string $value Value.
 	 */
 	private static function looks_serialized( string $value ): bool {
 		$last = substr( $value, -1 );
@@ -126,14 +126,14 @@ final class Replacer {
 	}
 
 	/**
-	 * Recorre un token serializado desde $p y lo devuelve reconstruido.
+	 * Walks a serialized token from $p and returns it rebuilt.
 	 *
-	 * @param string $s       Texto serializado completo.
-	 * @param int    $p       Posición actual (se avanza).
-	 * @param int    $depth   Profundidad.
-	 * @param bool   $replace Reemplazar en los strings de este token (las claves no se tocan).
+	 * @param string $s       Full serialized text.
+	 * @param int    $p       Current position (advanced).
+	 * @param int    $depth   Depth.
+	 * @param bool   $replace Replace in the strings of this token (keys are left alone).
 	 *
-	 * @throws \UnexpectedValueException Si el formato no es válido.
+	 * @throws \UnexpectedValueException If the format is not valid.
 	 */
 	private function walk( string $s, int &$p, int $depth, bool $replace ): string {
 		$start = $p;
@@ -183,7 +183,7 @@ final class Replacer {
 				return 'O:' . strlen( $name ) . ':"' . $name . '":' . $count . ':{' . $this->members( $s, $p, $count, $depth, $replace ) . '}';
 
 			case 'C':
-				// Serialización propia de la clase: es opaca, se copia tal cual.
+				// The class's own serialization: it is opaque, copied as is.
 				$this->class_name( $s, $p );
 				$this->expect( $s, $p, ':' );
 				$len = $this->number( $s, $p, ':' );
@@ -203,13 +203,13 @@ final class Replacer {
 	}
 
 	/**
-	 * Recorre $count pares clave/valor de un array u objeto y consume el "}" final.
+	 * Walks $count key/value pairs of an array or object and consumes the closing "}".
 	 *
-	 * @param string $s       Texto serializado.
-	 * @param int    $p       Posición (se avanza).
-	 * @param int    $count   Número de pares.
-	 * @param int    $depth   Profundidad.
-	 * @param bool   $replace Reemplazar en los valores.
+	 * @param string $s       Serialized text.
+	 * @param int    $p       Position (advanced).
+	 * @param int    $count   Number of pairs.
+	 * @param int    $depth   Depth.
+	 * @param bool   $replace Replace in the values.
 	 */
 	private function members( string $s, int &$p, int $count, int $depth, bool $replace ): string {
 		$out = '';
@@ -222,10 +222,10 @@ final class Replacer {
 	}
 
 	/**
-	 * Lee `X:len:"Nombre"` y devuelve el nombre de la clase.
+	 * Reads `X:len:"Name"` and returns the class name.
 	 *
-	 * @param string $s Texto serializado.
-	 * @param int    $p Posición (se avanza).
+	 * @param string $s Serialized text.
+	 * @param int    $p Position (advanced).
 	 */
 	private function class_name( string $s, int &$p ): string {
 		$len = $this->length( $s, $p );
@@ -237,10 +237,10 @@ final class Replacer {
 	}
 
 	/**
-	 * Lee `X:123:` y devuelve 123.
+	 * Reads `X:123:` and returns 123.
 	 *
-	 * @param string $s Texto serializado.
-	 * @param int    $p Posición (se avanza).
+	 * @param string $s Serialized text.
+	 * @param int    $p Position (advanced).
 	 */
 	private function length( string $s, int &$p ): int {
 		++$p;
@@ -249,13 +249,13 @@ final class Replacer {
 	}
 
 	/**
-	 * Lee dígitos hasta $end (y lo consume).
+	 * Reads digits up to $end (and consumes it).
 	 *
-	 * @param string $s   Texto serializado.
-	 * @param int    $p   Posición (se avanza).
-	 * @param string $end Carácter terminador.
+	 * @param string $s   Serialized text.
+	 * @param int    $p   Position (advanced).
+	 * @param string $end Terminating character.
 	 *
-	 * @throws \UnexpectedValueException Si no son dígitos.
+	 * @throws \UnexpectedValueException If they are not digits.
 	 */
 	private function number( string $s, int &$p, string $end ): int {
 		$stop = strpos( $s, $end, $p );
@@ -271,13 +271,13 @@ final class Replacer {
 	}
 
 	/**
-	 * Exige el texto $token en la posición $p y lo consume.
+	 * Requires the text $token at position $p and consumes it.
 	 *
-	 * @param string $s     Texto serializado.
-	 * @param int    $p     Posición (se avanza).
-	 * @param string $token Texto esperado.
+	 * @param string $s     Serialized text.
+	 * @param int    $p     Position (advanced).
+	 * @param string $token Expected text.
 	 *
-	 * @throws \UnexpectedValueException Si no está.
+	 * @throws \UnexpectedValueException If it is not there.
 	 */
 	private function expect( string $s, int &$p, string $token ): void {
 		if ( substr( $s, $p, strlen( $token ) ) !== $token ) {
@@ -287,17 +287,17 @@ final class Replacer {
 	}
 
 	/**
-	 * Reemplaza dentro de un documento JSON. Devuelve null si el valor no es JSON.
+	 * Replaces inside a JSON document. Returns null if the value is not JSON.
 	 *
-	 * @param string $value Valor.
-	 * @param int    $depth Profundidad.
+	 * @param string $value Value.
+	 * @param int    $depth Depth.
 	 */
 	private function json( string $value, int $depth ): ?string {
 		$first = $value[0] ?? '';
 		if ( '{' !== $first && '[' !== $first ) {
 			return null;
 		}
-		// ponytail: enteros mayores que PHP_INT_MAX pasan a float al re-codificar; solo afecta a valores que sí cambian.
+		// ponytail: integers larger than PHP_INT_MAX become floats when re-encoded; only affects values that do change.
 		$data = json_decode( $value );
 		if ( ! is_array( $data ) && ! is_object( $data ) ) {
 			return null;
@@ -307,7 +307,7 @@ final class Replacer {
 		if ( ! $changed ) {
 			return $value;
 		}
-		// Conserva el estilo del original.
+		// Preserve the original's style.
 		$flags = JSON_PRESERVE_ZERO_FRACTION;
 		if ( ! str_contains( $value, '\/' ) ) {
 			$flags |= JSON_UNESCAPED_SLASHES;
@@ -315,16 +315,16 @@ final class Replacer {
 		if ( ! str_contains( $value, '\u' ) ) {
 			$flags |= JSON_UNESCAPED_UNICODE;
 		}
-		$out = json_encode( $data, $flags ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- el motor no depende de WordPress.
+		$out = json_encode( $data, $flags ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- the engine does not depend on WordPress.
 		return false === $out ? $value : $out;
 	}
 
 	/**
-	 * Recorre lo decodificado de un JSON.
+	 * Walks the decoded contents of a JSON document.
 	 *
-	 * @param mixed $data    Nodo.
-	 * @param int   $depth   Profundidad.
-	 * @param bool  $changed Se pone en true si algo cambió.
+	 * @param mixed $data    Node.
+	 * @param int   $depth   Depth.
+	 * @param bool  $changed Set to true if something changed.
 	 */
 	private function json_walk( mixed $data, int $depth, bool &$changed ): mixed {
 		if ( is_string( $data ) ) {
@@ -345,9 +345,9 @@ final class Replacer {
 	}
 
 	/**
-	 * Reemplazo en texto plano.
+	 * Replacement in plain text.
 	 *
-	 * @param string $value Valor.
+	 * @param string $value Value.
 	 */
 	private function text( string $value ): string {
 		if ( $this->regex ) {

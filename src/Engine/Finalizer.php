@@ -1,6 +1,6 @@
 <?php
 /**
- * Cambia las tablas temporales por las vivas.
+ * Swaps the temporary tables in for the live ones.
  *
  * @package Siteferry
  */
@@ -10,28 +10,28 @@ namespace Siteferry\Engine;
 use Siteferry\Support\Db;
 
 /**
- * Último paso: preserva opciones, hace el cambio atómico y recrea las llaves foráneas.
+ * Final step: preserves options, does the atomic swap and recreates the foreign keys.
  */
 final class Finalizer {
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Db     $db     Conexión.
-	 * @param Schema $schema Estructura.
+	 * @param Db     $db     Connection.
+	 * @param Schema $schema Structure.
 	 */
 	public function __construct( private Db $db, private Schema $schema ) {}
 
 	/**
-	 * Ejecuta el cambio.
+	 * Runs the swap.
 	 *
-	 * @param array<string, string>                      $swap          Tabla temporal => tabla final.
-	 * @param list<array{table: string, clause: string}> $fks           Llaves foráneas diferidas (tabla final + cláusula).
-	 * @param array<string, string>                      $ref_map       Nombre en el origen => nombre final (para REFERENCES).
-	 * @param string                                     $options_table Tabla de opciones del sitio.
-	 * @param list<string>                               $preserve      Opciones a conservar además de las siteferry_*.
-	 * @param string                                     $plugin        Basename del plugin, que debe quedar activo.
-	 * @return list<string> Advertencias.
+	 * @param array<string, string>                      $swap          Temporary table => final table.
+	 * @param list<array{table: string, clause: string}> $fks           Deferred foreign keys (final table + clause).
+	 * @param array<string, string>                      $ref_map       Source name => final name (for REFERENCES).
+	 * @param string                                     $options_table Site options table.
+	 * @param list<string>                               $preserve      Options to keep in addition to the siteferry_* ones.
+	 * @param string                                     $plugin        Plugin basename, which must stay active.
+	 * @return list<string> Warnings.
 	 */
 	public function run( array $swap, array $fks, array $ref_map, string $options_table, array $preserve, string $plugin ): array {
 		$tmp_options = array_search( $options_table, $swap, true );
@@ -50,15 +50,15 @@ final class Finalizer {
 			$renames[] = Db::ident( $tmp ) . ' TO ' . Db::ident( $final );
 		}
 		if ( $renames ) {
-			// Una sola sentencia: o cambian todas las tablas o ninguna.
+			// A single statement: either all tables are swapped or none are.
 			$this->db->query( 'RENAME TABLE ' . implode( ', ', $renames ) );
 		}
 		if ( $old ) {
 			$this->db->query( 'DROP TABLE IF EXISTS ' . implode( ', ', $old ) );
 		}
 
-		// ponytail: una llave foránea de una tabla que NO se migra hacia una que sí queda apuntando a la tabla
-		// vieja borrada; WordPress core no tiene llaves foráneas.
+		// ponytail: a foreign key from a table that is NOT migrated to one that is ends up pointing at the dropped
+		// old table; WordPress core has no foreign keys.
 		$warnings = array();
 		foreach ( $fks as $fk ) {
 			$clause = preg_replace_callback(
@@ -69,19 +69,19 @@ final class Finalizer {
 			try {
 				$this->db->query( 'ALTER TABLE ' . Db::ident( $fk['table'] ) . ' ADD ' . $clause );
 			} catch ( \RuntimeException $e ) {
-				$warnings[] = 'No se pudo recrear la llave foránea en ' . $fk['table'] . ': ' . $e->getMessage();
+				$warnings[] = 'Could not recreate the foreign key on ' . $fk['table'] . ': ' . $e->getMessage();
 			}
 		}
 		return $warnings;
 	}
 
 	/**
-	 * Copia a la tabla de opciones nueva las opciones que no deben cambiar.
+	 * Copies into the new options table the options that must not change.
 	 *
-	 * @param string       $live     Tabla viva.
-	 * @param string       $tmp      Tabla nueva.
-	 * @param list<string> $preserve Nombres extra.
-	 * @param string       $plugin   Basename del plugin.
+	 * @param string       $live     Live table.
+	 * @param string       $tmp      New table.
+	 * @param list<string> $preserve Extra names.
+	 * @param string       $plugin   Plugin basename.
 	 */
 	private function preserve_options( string $live, string $tmp, array $preserve, string $plugin ): void {
 		$names = $preserve ? ' OR option_name IN (' . implode( ',', array_map( array( $this->db, 'quote' ), $preserve ) ) . ')' : '';

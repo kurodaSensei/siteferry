@@ -1,6 +1,6 @@
 <?php
 /**
- * Destino de sentencias SQL.
+ * Destination for SQL statements.
  *
  * @package Siteferry
  */
@@ -8,12 +8,12 @@
 namespace Siteferry\Engine;
 
 /**
- * Recibe sentencias SQL completas (sin el ";" final).
+ * Receives complete SQL statements (without the trailing ";").
  */
 interface Sink {
 
 	/**
-	 * Escribe o ejecuta una sentencia.
+	 * Writes or runs a statement.
 	 *
 	 * @param string $statement SQL.
 	 */

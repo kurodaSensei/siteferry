@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Siteferry — compatibilidad
- * Description: Durante los pasos de una migración desactiva los demás plugins y el tema para que no interfieran. Lo instala y lo quita Siteferry.
+ * Description: During migration steps, switches off the other plugins and the theme so they cannot interfere. Installed and removed by Siteferry.
  *
  * @package Siteferry
  */
@@ -9,8 +9,8 @@
 defined( 'ABSPATH' ) || exit;
 
 ( static function (): void {
-	// Solo dos rutas exactas (con /wp-json/… o ?rest_route=…), nunca otra URL que las contenga en
-	// el query string: apagar plugins en otra petición saltaría plugins de seguridad.
+	// Only two exact routes (via /wp-json/… or ?rest_route=…), never another URL that merely contains
+	// them in the query string: switching plugins off on any other request would bypass security plugins.
 	// phpcs:disable WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification
 	$route = isset( $_GET['rest_route'] )
 		? (string) wp_unslash( $_GET['rest_route'] )
@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 	$route = rawurldecode( $route );
 
 	if ( preg_match( '#/siteferry/v1/jobs/[a-f0-9]{16}/step/?$#', $route ) ) {
-		// Paso de un job de esta interfaz: la clave de compatibilidad y un job abierto.
+		// A job step from this site's UI: the compatibility key and an open job.
 		$key = (string) get_option( 'siteferry_compat_key' );
 		if ( '' === $key || ! hash_equals( $key, (string) ( $_SERVER['HTTP_X_SITEFERRY_COMPAT'] ?? '' ) ) ) {
 			return;
@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
 			return;
 		}
 	} elseif ( preg_match( '#/siteferry/v1/remote/?$#', $route ) ) {
-		// Petición de otro sitio: firma HMAC válida sobre la línea JSON del cuerpo (la que firma el protocolo).
+		// A request from another site: a valid HMAC signature over the body's JSON line (the one the protocol signs).
 		$key  = (string) get_option( 'siteferry_connection_key' );
 		$sent = (string) ( $_SERVER['HTTP_X_SITEFERRY_SIGNATURE'] ?? '' );
 		$body = (string) file_get_contents( 'php://input' );
@@ -47,7 +47,7 @@ defined( 'ABSPATH' ) || exit;
 			? array_values( array_filter( $plugins, static fn( $p ) => str_ends_with( (string) $p, '/siteferry.php' ) ) )
 			: $plugins
 	);
-	// Sin functions.php del tema: WordPress solo lo carga si existe en el directorio del tema.
+	// No theme functions.php: WordPress only loads it if it exists in the theme directory.
 	$nowhere = static fn() => WP_CONTENT_DIR . '/siteferry-no-theme';
 	add_filter( 'template_directory', $nowhere );
 	add_filter( 'stylesheet_directory', $nowhere );

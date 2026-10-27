@@ -1,6 +1,6 @@
 <?php
 /**
- * Lotes de archivos para enviar entre sitios.
+ * Batches of files to send between sites.
  *
  * @package Siteferry
  */
@@ -8,29 +8,29 @@
 namespace Siteferry\Files;
 
 /**
- * Formato: una primera línea "SFYPKG1 {índice JSON}\n" y después los bytes crudos de cada
- * tramo, en orden. Cada entrada del índice es un tramo de un archivo:
- * path, offset (desde qué byte), length (bytes en este paquete), size (tamaño total) y md5
- * (del archivo completo). Un archivo grande viaja en varios paquetes y solo se coloca cuando
- * está completo y su md5 coincide. Sin ZIP: no hay rutas dentro de un archivo comprimido que
- * puedan escapar ni dependencia de ZipArchive.
+ * Format: a first line "SFYPKG1 {JSON index}\n" followed by the raw bytes of each chunk, in
+ * order. Each index entry is a chunk of a file:
+ * path, offset (starting byte), length (bytes in this package), size (total size) and md5
+ * (of the whole file). A large file travels in several packages and is only put in place once
+ * it is complete and its md5 matches. No ZIP: there are no paths inside a compressed archive
+ * that could escape, and no dependency on ZipArchive.
  */
 final class Package {
 
 	private const MAGIC = 'SFYPKG1 ';
 
-	/** Tamaño máximo del índice. */
+	/** Maximum index size. */
 	private const MAX_INDEX = 8 * 1024 * 1024;
 
 	/**
-	 * Arma un paquete con los archivos de una lista, hasta $max_bytes de contenido.
+	 * Builds a package from the files in a list, up to $max_bytes of content.
 	 *
-	 * @param Manifest      $pending   Archivos a enviar.
-	 * @param PathGuard     $guard     Raíz de origen.
-	 * @param array|null    $cursor    Null para empezar; pos (byte en la lista), offset, size y md5 del archivo en curso.
-	 * @param int           $max_bytes Bytes de contenido por paquete (siempre va al menos un tramo).
-	 * @param int           $max_files Entradas por paquete.
-	 * @param callable|null $allow     fn(string $relative): bool; lo no permitido se informa como faltante.
+	 * @param Manifest      $pending   Files to send.
+	 * @param PathGuard     $guard     Source root.
+	 * @param array|null    $cursor    Null to start; pos (byte in the list), offset, size and md5 of the file in progress.
+	 * @param int           $max_bytes Content bytes per package (at least one chunk is always included).
+	 * @param int           $max_files Entries per package.
+	 * @param callable|null $allow     fn(string $relative): bool; anything not allowed is reported as missing.
 	 * @return array{package: string, cursor: ?array, files: int, bytes: int, missing: list<string>}
 	 */
 	public static function build( Manifest $pending, PathGuard $guard, ?array $cursor, int $max_bytes, int $max_files = 2000, ?callable $allow = null ): array {
@@ -46,12 +46,12 @@ final class Package {
 		foreach ( $pending->read_from( (int) $cursor['pos'] ) as [ $file, , , $after ] ) {
 			$absolute = ( null === $allow || $allow( $file ) ) ? $guard->resolve( $file ) : null;
 			if ( null === $absolute || ! is_file( $absolute ) || is_link( $absolute ) ) {
-				$missing[]     = $file; // Se borró o cambió de tipo después del escaneo.
+				$missing[]     = $file; // Deleted or changed type after the scan.
 				$cursor['pos'] = $after;
 				continue;
 			}
 			if ( 0 === (int) $cursor['offset'] ) {
-				// Tamaño y hash al empezar el archivo: si cambia entre tramos, el md5 final no coincidirá.
+				// Size and hash when the file starts: if it changes between chunks, the final md5 will not match.
 				clearstatcache( true, $absolute );
 				$cursor['size'] = (int) filesize( $absolute );
 				$cursor['md5']  = (string) md5_file( $absolute );
@@ -75,7 +75,7 @@ final class Package {
 			$body   .= $chunk;
 
 			if ( $offset + strlen( $chunk ) < $cursor['size'] ) {
-				$cursor['offset'] = $offset + strlen( $chunk ); // El archivo sigue en el próximo paquete.
+				$cursor['offset'] = $offset + strlen( $chunk ); // The file continues in the next package.
 				$next             = $cursor;
 				break;
 			}
@@ -89,7 +89,7 @@ final class Package {
 			}
 		}
 
-		// Si la lista se terminó, no hay cursor; si se cortó, $next apunta a lo que sigue.
+		// If the list ended there is no cursor; if it was cut short, $next points to what comes next.
 		$done = null === $next;
 		return array(
 			'package' => self::MAGIC . json_encode( array( 'files' => $index ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "\n" . $body, // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
@@ -101,17 +101,17 @@ final class Package {
 	}
 
 	/**
-	 * Escribe un paquete en una raíz. Cada tramo va a "<archivo>.siteferry-part"; cuando un archivo
-	 * está completo y su md5 coincide se entrega a $place (por defecto, rename).
+	 * Writes a package to a root. Each chunk goes to "<file>.siteferry-part"; once a file is
+	 * complete and its md5 matches, it is handed to $place (by default, rename).
 	 *
-	 * @param string        $package Paquete.
-	 * @param PathGuard     $guard   Raíz de destino.
-	 * @param bool          $media   Rechazar ejecutables.
+	 * @param string        $package Package.
+	 * @param PathGuard     $guard   Destination root.
+	 * @param bool          $media   Reject executables.
 	 * @param callable|null $place   fn(string $part, string $target, string $relative): void.
-	 * @param callable|null $allow   fn(string $relative): bool; lo no permitido no se escribe.
+	 * @param callable|null $allow   fn(string $relative): bool; anything not allowed is not written.
 	 * @return array{done: list<string>, partial: list<string>, failed: array<string, string>}
 	 *
-	 * @throws \RuntimeException Si el paquete está mal formado (no se escribe nada).
+	 * @throws \RuntimeException If the package is malformed (nothing is written).
 	 */
 	public static function extract( string $package, PathGuard $guard, bool $media, ?callable $place = null, ?callable $allow = null ): array {
 		$entries = self::parse( $package );
@@ -128,40 +128,40 @@ final class Package {
 			$file     = $entry['path'];
 			$absolute = $guard->resolve( $file );
 			if ( null === $absolute ) {
-				$result['failed'][ $file ] = 'ruta no permitida';
+				$result['failed'][ $file ] = 'path not allowed';
 				continue;
 			}
 			if ( $media && PathGuard::executable( $file ) ) {
-				$result['failed'][ $file ] = 'ejecutable en media';
+				$result['failed'][ $file ] = 'executable in media';
 				continue;
 			}
 			if ( null !== $allow && ! $allow( $file ) ) {
-				$result['failed'][ $file ] = 'ruta excluida';
+				$result['failed'][ $file ] = 'path excluded';
 				continue;
 			}
 			if ( ( is_dir( $absolute ) || is_link( $absolute ) ) || ! self::ensure_dir( dirname( $absolute ), $guard ) ) {
-				$result['failed'][ $file ] = 'no se puede escribir';
+				$result['failed'][ $file ] = 'cannot write';
 				continue;
 			}
 			$part    = $absolute . Scanner::PART;
 			$current = is_file( $part ) ? (int) filesize( $part ) : 0;
 			if ( is_link( $part ) ) {
-				$result['failed'][ $file ] = 'no se puede escribir';
+				$result['failed'][ $file ] = 'cannot write';
 				continue;
 			}
 			if ( $entry['offset'] > $current ) {
-				// Reintento del último tramo de un archivo que ya quedó colocado: no hay nada que hacer.
+				// Retry of the last chunk of a file that is already in place: nothing to do.
 				if ( 0 === $current && is_file( $absolute ) && filesize( $absolute ) === $entry['size'] && md5_file( $absolute ) === $entry['md5'] ) {
 					$result['done'][] = $file;
 					continue;
 				}
-				$result['failed'][ $file ] = 'falta un tramo anterior';
+				$result['failed'][ $file ] = 'a previous chunk is missing';
 				continue;
 			}
-			// Un tramo repetido (reintento) reescribe desde su offset: el resultado es el mismo.
+			// A repeated chunk (retry) rewrites from its offset: the result is the same.
 			$handle = fopen( $part, 0 === $entry['offset'] ? 'wb' : 'r+b' );
 			if ( ! $handle ) {
-				$result['failed'][ $file ] = 'no se puede escribir';
+				$result['failed'][ $file ] = 'cannot write';
 				continue;
 			}
 			ftruncate( $handle, $entry['offset'] );
@@ -175,7 +175,7 @@ final class Package {
 			}
 			if ( md5_file( $part ) !== $entry['md5'] ) {
 				unlink( $part );
-				$result['failed'][ $file ] = 'el contenido no coincide (¿cambió durante el envío?)';
+				$result['failed'][ $file ] = 'content does not match (did it change during transfer?)';
 				continue;
 			}
 			$place( $part, $absolute, $file );
@@ -185,21 +185,21 @@ final class Package {
 	}
 
 	/**
-	 * Valida el paquete completo antes de tocar nada.
+	 * Validates the whole package before touching anything.
 	 *
-	 * @param string $package Paquete.
+	 * @param string $package Package.
 	 * @return list<array{path: string, offset: int, length: int, size: int, md5: string, data: string}>
 	 *
-	 * @throws \RuntimeException Si algo no cuadra.
+	 * @throws \RuntimeException If anything does not add up.
 	 */
 	private static function parse( string $package ): array {
 		$newline = strpos( $package, "\n" );
 		if ( ! str_starts_with( $package, self::MAGIC ) || false === $newline || $newline > self::MAX_INDEX ) {
-			throw new \RuntimeException( 'Paquete de archivos inválido.' );
+			throw new \RuntimeException( 'Invalid file package.' );
 		}
 		$index = json_decode( substr( $package, strlen( self::MAGIC ), $newline - strlen( self::MAGIC ) ), true );
 		if ( ! is_array( $index['files'] ?? null ) ) {
-			throw new \RuntimeException( 'Índice de paquete inválido.' );
+			throw new \RuntimeException( 'Invalid package index.' );
 		}
 		$entries = array();
 		$at      = $newline + 1;
@@ -211,7 +211,7 @@ final class Package {
 			$md5    = is_string( $item['md5'] ?? null ) ? $item['md5'] : '';
 			if ( null === PathGuard::clean( $path ) || ! is_int( $offset ) || ! is_int( $length ) || ! is_int( $size )
 				|| $offset < 0 || $length < 0 || $offset + $length > $size || ! preg_match( '/^[a-f0-9]{32}$/', $md5 ) ) {
-				throw new \RuntimeException( 'Entrada de paquete inválida.' );
+				throw new \RuntimeException( 'Invalid package entry.' );
 			}
 			$entries[] = array(
 				'path'   => $path,
@@ -224,16 +224,16 @@ final class Package {
 			$at       += $length;
 		}
 		if ( strlen( $package ) !== $at ) {
-			throw new \RuntimeException( 'El paquete no tiene los bytes que declara.' );
+			throw new \RuntimeException( 'The package does not have the bytes it declares.' );
 		}
 		return $entries;
 	}
 
 	/**
-	 * Crea la carpeta si falta, comprobando que quede dentro de la raíz.
+	 * Creates the folder if missing, checking that it stays inside the root.
 	 *
-	 * @param string    $dir   Carpeta absoluta.
-	 * @param PathGuard $guard Raíz.
+	 * @param string    $dir   Absolute folder.
+	 * @param PathGuard $guard Root.
 	 */
 	private static function ensure_dir( string $dir, PathGuard $guard ): bool {
 		if ( ! is_dir( $dir ) && ! mkdir( $dir, 0755, true ) && ! is_dir( $dir ) ) {

@@ -1,6 +1,6 @@
 <?php
 /**
- * Rutas seguras dentro de una carpeta raíz.
+ * Safe paths inside a root folder.
  *
  * @package Siteferry
  */
@@ -8,23 +8,23 @@
 namespace Siteferry\Files;
 
 /**
- * Toda ruta que viaja entre sitios es relativa a una raíz (uploads, themes, plugins, mu-plugins)
- * y nunca puede salir de ella: ni con "..", ni siendo absoluta, ni a través de un symlink.
+ * Every path that travels between sites is relative to a root (uploads, themes, plugins, mu-plugins)
+ * and can never leave it: not with "..", not by being absolute, not through a symlink.
  */
 final class PathGuard {
 
 	/**
-	 * Extensiones que un servidor puede ejecutar. En media no se aceptan nunca.
+	 * Extensions a server can execute. Media never accepts them.
 	 */
 	private const EXECUTABLE = '/\.(?:php[0-9]?|pht|phtml|phar|phps|shtml|cgi|pl|py|sh|asp|aspx|jsp)(?:\.|$)/i';
 
 	/**
-	 * Archivos de configuración del servidor web o de PHP.
+	 * Web server or PHP configuration files.
 	 */
 	private const SERVER_CONFIG = array( '.htaccess', '.htpasswd', '.user.ini', 'php.ini', 'web.config' );
 
 	/**
-	 * Raíz real (sin barra final).
+	 * Real root (no trailing slash).
 	 *
 	 * @var string
 	 */
@@ -33,29 +33,29 @@ final class PathGuard {
 	/**
 	 * Constructor.
 	 *
-	 * @param string $root Carpeta raíz; debe existir.
+	 * @param string $root Root folder; must exist.
 	 *
-	 * @throws \InvalidArgumentException Si no existe.
+	 * @throws \InvalidArgumentException If it does not exist.
 	 */
 	public function __construct( string $root ) {
 		$real = realpath( $root );
 		if ( false === $real || ! is_dir( $real ) ) {
-			throw new \InvalidArgumentException( 'No existe la carpeta ' . $root );
+			throw new \InvalidArgumentException( 'Folder does not exist: ' . $root );
 		}
 		$this->root = rtrim( $real, '/' );
 	}
 
 	/**
-	 * Raíz real.
+	 * Real root.
 	 */
 	public function root(): string {
 		return $this->root;
 	}
 
 	/**
-	 * Normaliza una ruta relativa ("a/b/c.jpg") o devuelve null si no es aceptable.
+	 * Normalizes a relative path ("a/b/c.jpg") or returns null if it is not acceptable.
 	 *
-	 * @param string $relative Ruta recibida.
+	 * @param string $relative Received path.
 	 */
 	public static function clean( string $relative ): ?string {
 		if ( '' === $relative || strlen( $relative ) > 1024 || preg_match( '/[\x00-\x1f\x7f\\\\:]/', $relative ) || str_starts_with( $relative, '/' ) ) {
@@ -70,10 +70,10 @@ final class PathGuard {
 	}
 
 	/**
-	 * Ruta absoluta dentro de la raíz, o null si la ruta no es aceptable o escaparía de la raíz
-	 * (por ejemplo a través de una carpeta que es un symlink).
+	 * Absolute path inside the root, or null if the path is not acceptable or would escape the root
+	 * (for example through a folder that is a symlink).
 	 *
-	 * @param string $relative Ruta relativa.
+	 * @param string $relative Relative path.
 	 */
 	public function resolve( string $relative ): ?string {
 		$clean = self::clean( $relative );
@@ -81,7 +81,7 @@ final class PathGuard {
 			return null;
 		}
 		$absolute = $this->root . '/' . $clean;
-		// El ancestro más profundo que ya existe tiene que estar dentro de la raíz.
+		// The deepest ancestor that already exists must be inside the root.
 		$existing = $absolute;
 		while ( ! file_exists( $existing ) && ! is_link( $existing ) ) {
 			$existing = dirname( $existing );
@@ -97,9 +97,9 @@ final class PathGuard {
 	}
 
 	/**
-	 * Si un archivo podría ejecutarse en el servidor (no se acepta en media).
+	 * Whether a file could be executed on the server (not accepted in media).
 	 *
-	 * @param string $relative Ruta relativa.
+	 * @param string $relative Relative path.
 	 */
 	public static function executable( string $relative ): bool {
 		$name = strtolower( basename( $relative ) );

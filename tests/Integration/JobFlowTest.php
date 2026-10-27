@@ -1,6 +1,6 @@
 <?php
 /**
- * Flujos completos: exportar, importar, reemplazar y cancelar.
+ * Full flows: export, import, replace and cancel.
  *
  * @package Siteferry
  */
@@ -19,7 +19,7 @@ final class JobFlowTest extends DbTestCase {
 	private const NEW = 'https://new.example';
 
 	/**
-	 * Sitio "A" de prueba (prefijo wpa_, URL http://old.test).
+	 * Test site "A" (prefix wpa_, URL http://old.test).
 	 */
 	private function site_a(): Db {
 		[ $db ] = $this->database();
@@ -29,7 +29,7 @@ final class JobFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Sitio "B" de destino (prefijo wpb_, URL https://new.example) con opciones propias.
+	 * Destination site "B" (prefix wpb_, URL https://new.example) with its own options.
 	 */
 	private function site_b(): Db {
 		[ $db ] = $this->database();
@@ -44,7 +44,7 @@ final class JobFlowTest extends DbTestCase {
 	}
 
 	/**
-	 * Corre el job hasta el final, una unidad de trabajo por llamada.
+	 * Runs the job to the end, one unit of work per call.
 	 */
 	private function run_job( Db $db, array $job ): array {
 		$runner = new Runner( $db );
@@ -52,7 +52,7 @@ final class JobFlowTest extends DbTestCase {
 			$job = $runner->step( $job, new Budget( 0 ) );
 		}
 		$this->assertSame( 'done', $job['status'], (string) $job['error'] . "\n" . implode( "\n", $job['log'] ) );
-		$this->assertGreaterThan( 10, $i, 'El job debe avanzar en muchos pasos cortos' );
+		$this->assertGreaterThan( 10, $i, 'The job must advance in many short steps' );
 		return $job;
 	}
 
@@ -67,7 +67,7 @@ final class JobFlowTest extends DbTestCase {
 		$export = $this->run_job( $a, Planner::create( 'export', array(), $this->site( 'wpa_', self::OLD ), new Schema( $a ) ) );
 		$file   = $export['files']['export'];
 		$this->assertFileExists( $file );
-		$this->assertStringNotContainsString( 'A-job', implode( '', gzfile( $file ) ), 'las opciones siteferry_ (claves del plugin) no se exportan' );
+		$this->assertStringNotContainsString( 'A-job', implode( '', gzfile( $file ) ), 'siteferry_ options (plugin keys) are not exported' );
 
 		$job = Planner::create(
 			'import',
@@ -83,8 +83,8 @@ final class JobFlowTest extends DbTestCase {
 
 		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'home' ) );
 		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'siteurl' ) );
-		$this->assertSame( '0', $this->option( $b, 'wpb_options', 'blog_public' ), 'blog_public del destino se conserva' );
-		$this->assertSame( 'B-job', $this->option( $b, 'wpb_options', 'siteferry_job' ), 'las opciones siteferry_ del destino se conservan' );
+		$this->assertSame( '0', $this->option( $b, 'wpb_options', 'blog_public' ), 'the destination blog_public is kept' );
+		$this->assertSame( 'B-job', $this->option( $b, 'wpb_options', 'siteferry_job' ), 'the destination siteferry_ options are kept' );
 		$this->assertContains( 'siteferry/siteferry.php', unserialize( $this->option( $b, 'wpb_options', 'active_plugins' ) ) );
 		$this->assertStringContainsString( self::NEW . '/x', unserialize( $this->option( $b, 'wpb_options', 'widget_text' ) )[2]['text'] );
 		$this->assertNotNull( $this->option( $b, 'wpb_options', 'wpb_user_roles' ) );
@@ -93,7 +93,7 @@ final class JobFlowTest extends DbTestCase {
 		$content = (string) $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 1' );
 		$this->assertStringContainsString( 'https:\/\/new.example\/a.jpg', $content );
 		$this->assertStringContainsString( 'src="https://new.example/a.jpg"', $content );
-		$this->assertSame( self::OLD . '/?p=1', $b->value( 'SELECT guid FROM wpb_posts WHERE ID = 1' ), 'guid no se toca' );
+		$this->assertSame( self::OLD . '/?p=1', $b->value( 'SELECT guid FROM wpb_posts WHERE ID = 1' ), 'guid is left alone' );
 		$this->assertNull( $b->value( 'SELECT ID FROM wpb_posts WHERE ID = 99' ) );
 		$this->assertSame( '1', $b->value( "SELECT COUNT(*) FROM wpb_usermeta WHERE meta_key = 'wpb_capabilities'" ) );
 		$this->assertSame( '0', $b->value( "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'wpa\\_%'" ) );
@@ -105,12 +105,12 @@ final class JobFlowTest extends DbTestCase {
 
 		$backup = implode( '', gzfile( $job['files']['backup'] ) );
 		$this->assertStringContainsString( 'post que debe desaparecer', $backup );
-		$this->assertFileExists( $file, 'el archivo que no es del plugin no se borra' );
-		$this->assertFileDoesNotExist( $job['files']['import_sql'], 'el .sql descomprimido sí se borra' );
+		$this->assertFileExists( $file, 'a file that does not belong to the plugin is not deleted' );
+		$this->assertFileDoesNotExist( $job['files']['import_sql'], 'the decompressed .sql is deleted' );
 	}
 
 	public function test_dump_with_two_installs_needs_the_source_prefix(): void {
-		// Una base con la instalación activa (wpa_) y restos de otra (wpb_) en la misma base.
+		// A database with the active install (wpa_) and leftovers of another (wpb_) in the same database.
 		$source = $this->site_a();
 		$stale  = str_replace( '__P__', 'wpb_', (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/seed-wp.sql' ) );
 		$source->in_migration_session( fn() => $this->exec( $source, $stale ) );
@@ -125,7 +125,7 @@ final class JobFlowTest extends DbTestCase {
 		}
 		$this->assertSame( 'failed', $job['status'] );
 		$this->assertStringContainsString( 'wpa_, wpb_', (string) $job['error'] );
-		$this->assertSame( 'post que debe desaparecer', $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 99' ), 'nada cambió' );
+		$this->assertSame( 'post que debe desaparecer', $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 99' ), 'nothing changed' );
 		$runner->cancel( $job );
 
 		$job = Planner::create(
@@ -142,7 +142,7 @@ final class JobFlowTest extends DbTestCase {
 
 		$this->assertSame( self::NEW, $this->option( $b, 'wpb_options', 'home' ) );
 		$this->assertNull( $b->value( 'SELECT ID FROM wpb_posts WHERE ID = 99' ) );
-		$this->assertNotEmpty( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'omitidas porque chocarían' ) && str_contains( $l, 'wpb_options' ) ) );
+		$this->assertNotEmpty( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'skipped because they would collide' ) && str_contains( $l, 'wpb_options' ) ) );
 		$this->assertSame( '0', $b->value( "SELECT COUNT(*) FROM wpb_options WHERE option_value LIKE '%stale.test%'" ) );
 		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
 	}
@@ -164,7 +164,7 @@ final class JobFlowTest extends DbTestCase {
 		$this->assertSame( 'Hola mundo 🚀', $b->value( 'SELECT post_content FROM wpb_posts WHERE ID = 2' ) );
 		$this->assertSame( '0000-00-00 00:00:00', $b->value( 'SELECT post_date_gmt FROM wpb_posts WHERE ID = 1' ) );
 		$this->assertSame( '2', $b->value( 'SELECT COUNT(*) FROM wpb_child' ) );
-		$this->assertGreaterThan( 0, $job['import']['skipped'] + count( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'omitidas' ) ) ) );
+		$this->assertGreaterThan( 0, $job['import']['skipped'] + count( array_filter( $job['log'], static fn( $l ) => str_contains( $l, 'skipped' ) ) ) );
 		$this->assertSame( array(), ( new Schema( $b ) )->temp_tables() );
 	}
 
@@ -186,7 +186,7 @@ final class JobFlowTest extends DbTestCase {
 		$this->assertSame( self::OLD . '/?p=1', $a->value( 'SELECT guid FROM wpa_posts WHERE ID = 1' ) );
 		$this->assertSame( 'A-job', $this->option( $a, 'wpa_options', 'siteferry_job' ) );
 		$this->assertSame( array(), ( new Schema( $a ) )->temp_tables() );
-		$this->assertStringContainsString( self::OLD, implode( '', gzfile( $job['files']['backup'] ) ), 'el backup tiene los datos de antes' );
+		$this->assertStringContainsString( self::OLD, implode( '', gzfile( $job['files']['backup'] ) ), 'the backup has the previous data' );
 	}
 
 	public function test_cancel_leaves_live_tables_untouched(): void {
@@ -217,7 +217,7 @@ final class JobFlowTest extends DbTestCase {
 		);
 		$job = ( new Runner( $a ) )->step( $job, new Budget( 10 ) );
 		$this->assertSame( 'failed', $job['status'] );
-		$this->assertStringContainsString( 'Expresión regular inválida', (string) $job['error'] );
+		$this->assertStringContainsString( 'Invalid regular expression', (string) $job['error'] );
 		$this->assertSame( array(), ( new Schema( $a ) )->temp_tables() );
 	}
 }

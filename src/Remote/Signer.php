@@ -1,6 +1,6 @@
 <?php
 /**
- * Firma de los mensajes entre sitios.
+ * Signing of messages between sites.
  *
  * @package Siteferry
  */
@@ -8,44 +8,44 @@
 namespace Siteferry\Remote;
 
 /**
- * HMAC-SHA256 sobre el cuerpo completo (que incluye op, argumentos, timestamp y nonce).
- * Cambiar un solo byte de la petición o de la respuesta invalida la firma.
+ * HMAC-SHA256 over the whole body (which includes op, arguments, timestamp and nonce).
+ * Changing a single byte of the request or the response invalidates the signature.
  */
 final class Signer {
 
-	/** Segundos de diferencia de reloj tolerados. */
+	/** Seconds of clock skew tolerated. */
 	public const MAX_SKEW = 300;
 
-	/** Cabecera HTTP con la firma. */
+	/** HTTP header carrying the signature. */
 	public const HEADER = 'X-Siteferry-Signature';
 
 	/**
-	 * Firma un cuerpo.
+	 * Signs a body.
 	 *
-	 * @param string $body Cuerpo exacto.
-	 * @param string $key  Clave compartida.
+	 * @param string $body Exact body.
+	 * @param string $key  Shared key.
 	 */
 	public static function sign( string $body, string $key ): string {
 		return hash_hmac( 'sha256', $body, $key );
 	}
 
 	/**
-	 * Comprueba una firma en tiempo constante.
+	 * Checks a signature in constant time.
 	 *
-	 * @param string $body      Cuerpo exacto.
-	 * @param string $signature Firma recibida.
-	 * @param string $key       Clave compartida.
+	 * @param string $body      Exact body.
+	 * @param string $signature Received signature.
+	 * @param string $key       Shared key.
 	 */
 	public static function valid( string $body, string $signature, string $key ): bool {
 		return '' !== $key && '' !== $signature && hash_equals( self::sign( $body, $key ), $signature );
 	}
 
 	/**
-	 * Línea firmable de una petición. Si la acompaña un binario, lleva su sha256.
+	 * Signable line of a request. If a binary accompanies it, it carries its sha256.
 	 *
-	 * @param string      $op     Operación.
-	 * @param array       $args   Argumentos.
-	 * @param string|null $binary Binario que viaja después de la línea.
+	 * @param string      $op     Operation.
+	 * @param array       $args   Arguments.
+	 * @param string|null $binary Binary that travels after the line.
 	 */
 	public static function message( string $op, array $args, ?string $binary = null ): string {
 		$message = array(
@@ -61,10 +61,10 @@ final class Signer {
 	}
 
 	/**
-	 * Separa un cuerpo enmarcado: la línea JSON firmada y, si hay, el binario que la sigue.
-	 * JSON nunca contiene saltos de línea crudos, así que el primero marca el final de la línea.
+	 * Splits a framed body: the signed JSON line and, if present, the binary that follows it.
+	 * JSON never contains raw line breaks, so the first one marks the end of the line.
 	 *
-	 * @param string $body Cuerpo.
+	 * @param string $body Body.
 	 * @return array{0: string, 1: ?string}
 	 */
 	public static function split( string $body ): array {
@@ -73,23 +73,23 @@ final class Signer {
 	}
 
 	/**
-	 * Separa "URL CLAVE" (en una o dos líneas) en sus partes.
+	 * Splits "URL KEY" (on one or two lines) into its parts.
 	 *
-	 * @param string $connection Texto copiado del otro sitio.
+	 * @param string $connection Text copied from the other site.
 	 * @return array{url: string, key: string}
 	 *
-	 * @throws \InvalidArgumentException Si no tiene el formato esperado.
+	 * @throws \InvalidArgumentException If it does not have the expected format.
 	 */
 	public static function parse_connection( string $connection ): array {
 		$parts = preg_split( '/\s+/', trim( $connection ) );
 		$url   = rtrim( (string) ( $parts[0] ?? '' ), '/' );
 		$key   = (string) ( $parts[1] ?? '' );
 		if ( 2 !== count( $parts ) || ! preg_match( '#^https?://#i', $url ) || ! preg_match( '/^[A-Za-z0-9]{32,64}$/', $key ) ) {
-			throw new \InvalidArgumentException( 'La información de conexión debe ser la URL del sitio y su clave, tal como aparecen en Siteferry del otro sitio.' );
+			throw new \InvalidArgumentException( 'The connection info must be the site URL and its key, exactly as shown in Siteferry on the other site.' );
 		}
-		// Por http la base de datos viajaría en claro: solo se permite hacia hosts de desarrollo.
+		// Over http the database would travel in clear text: only allowed towards development hosts.
 		if ( ! preg_match( '#^https://#i', $url ) && ! self::is_dev_host( (string) parse_url( $url, PHP_URL_HOST ) ) ) {
-			throw new \InvalidArgumentException( 'Usa https: por http la base de datos viajaría sin cifrar. Solo se permite http con hosts de desarrollo (localhost, .test, .local, IPs privadas).' );
+			throw new \InvalidArgumentException( 'Use https: over http the database would travel unencrypted. http is only allowed with development hosts (localhost, .test, .local, private IPs).' );
 		}
 		return array(
 			'url' => $url,
@@ -98,10 +98,10 @@ final class Signer {
 	}
 
 	/**
-	 * Hosts donde se acepta http: la propia máquina, dominios de desarrollo, nombres sin punto
-	 * (contenedores, intranet) e IPs privadas.
+	 * Hosts where http is accepted: the machine itself, development domains, dotless names
+	 * (containers, intranet) and private IPs.
 	 *
-	 * @param string $host Host de la URL.
+	 * @param string $host URL host.
 	 */
 	public static function is_dev_host( string $host ): bool {
 		$host = strtolower( trim( $host, '[]' ) );

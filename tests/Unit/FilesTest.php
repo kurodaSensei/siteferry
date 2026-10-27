@@ -1,6 +1,6 @@
 <?php
 /**
- * Pruebas de rutas, escaneo y comparación de archivos.
+ * Tests for paths, scanning and file comparison.
  *
  * @package Siteferry
  */
@@ -60,7 +60,7 @@ final class FilesTest extends TestCase {
 		$guard = new PathGuard( "$this->tmp/up" );
 
 		$this->assertSame( realpath( "$this->tmp/up" ) . '/2024/05/foto.jpg', $guard->resolve( '2024/05/foto.jpg' ) );
-		$this->assertNotNull( $guard->resolve( '2025/nueva/carpeta/archivo.png' ), 'rutas que aún no existen' );
+		$this->assertNotNull( $guard->resolve( '2025/nueva/carpeta/archivo.png' ), 'paths that do not exist yet' );
 		foreach ( array( '', '../secret/x', 'a/../../x', '/etc/passwd', 'a//b', './a', "a\0b", 'a\\..\\b', 'C:/x', 'enlace/x.txt', 'enlace' ) as $bad ) {
 			$this->assertNull( $guard->resolve( $bad ), var_export( $bad, true ) );
 		}
@@ -90,7 +90,7 @@ final class FilesTest extends TestCase {
 		$calls  = 0;
 		do {
 			$cursor = $scanner->scan( $cursor, $step, new Budget( 0 ) )['cursor'];
-			$cursor = $cursor ? json_decode( json_encode( $cursor ), true ) : null; // Como al guardarlo en el job.
+			$cursor = $cursor ? json_decode( json_encode( $cursor ), true ) : null; // As when saving it in the job.
 			++$calls;
 		} while ( $cursor );
 
@@ -104,7 +104,7 @@ final class FilesTest extends TestCase {
 				'raiz.txt'      => array( 1, md5( 'r' ) ),
 			),
 			$this->read( $full ),
-			'sin cache, parciales, ejecutables, .htaccess ni symlinks'
+			'no cache, partial files, executables, .htaccess or symlinks'
 		);
 	}
 
@@ -121,7 +121,7 @@ final class FilesTest extends TestCase {
 		$target = $this->manifest( 'target' );
 		$source->add( 'igual.jpg', 3, md5( 'abc' ) );
 		$source->add( 'nuevo.jpg', 5, md5( 'nuevo' ) );
-		$source->add( 'cambiado.jpg', 3, md5( 'xyz' ) ); // Mismo tamaño, otro contenido.
+		$source->add( 'cambiado.jpg', 3, md5( 'xyz' ) ); // Same size, different content.
 		$target->add( 'igual.jpg', 3, md5( 'abc' ) );
 		$target->add( 'cambiado.jpg', 3, md5( 'abc' ) );
 		$target->add( 'sobra.jpg', 4, md5( 'sobr' ) );

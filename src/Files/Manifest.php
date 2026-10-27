@@ -1,6 +1,6 @@
 <?php
 /**
- * Lista de archivos con tamaño y hash.
+ * List of files with size and hash.
  *
  * @package Siteferry
  */
@@ -8,13 +8,13 @@
 namespace Siteferry\Files;
 
 /**
- * Archivo JSONL con una entrada [ruta, tamaño, md5] por línea. Vive en disco para no cargar
- * la base de datos ni la memoria con miles de entradas.
+ * JSONL file with one [path, size, md5] entry per line. It lives on disk so as not to load
+ * the database or memory with thousands of entries.
  */
 final class Manifest {
 
 	/**
-	 * Manejador de escritura, abierto al primer uso.
+	 * Write handle, opened on first use.
 	 *
 	 * @var resource|null
 	 */
@@ -23,31 +23,31 @@ final class Manifest {
 	/**
 	 * Constructor.
 	 *
-	 * @param string $path Archivo .jsonl.
+	 * @param string $path .jsonl file.
 	 */
 	public function __construct( private string $path ) {}
 
 	/**
-	 * Ruta del archivo.
+	 * File path.
 	 */
 	public function path(): string {
 		return $this->path;
 	}
 
 	/**
-	 * Agrega una entrada.
+	 * Adds an entry.
 	 *
-	 * @param string $file Ruta relativa.
+	 * @param string $file Relative path.
 	 * @param int    $size Bytes.
 	 * @param string $md5  Hash.
 	 *
-	 * @throws \RuntimeException Si no se puede escribir.
+	 * @throws \RuntimeException If it cannot be written.
 	 */
 	public function add( string $file, int $size, string $md5 ): void {
 		if ( ! $this->handle ) {
 			$handle = fopen( $this->path, 'ab' );
 			if ( ! $handle ) {
-				throw new \RuntimeException( 'No se puede escribir ' . $this->path );
+				throw new \RuntimeException( 'Cannot write ' . $this->path );
 			}
 			$this->handle = $handle;
 		}
@@ -55,7 +55,7 @@ final class Manifest {
 	}
 
 	/**
-	 * Cierra el archivo.
+	 * Closes the file.
 	 */
 	public function close(): void {
 		if ( $this->handle ) {
@@ -65,17 +65,17 @@ final class Manifest {
 	}
 
 	/**
-	 * Cierra al destruirse.
+	 * Closes on destruction.
 	 */
 	public function __destruct() {
 		$this->close();
 	}
 
 	/**
-	 * Recorre las entradas desde un byte del archivo, junto con dónde empieza la siguiente
-	 * (sirve de cursor sin releer el archivo desde el principio).
+	 * Iterates the entries from a byte of the file, along with where the next one starts
+	 * (works as a cursor without rereading the file from the start).
 	 *
-	 * @param int $pos Byte donde empezar.
+	 * @param int $pos Byte to start at.
 	 * @return \Generator<int, array{0: string, 1: int, 2: string, 3: int}>
 	 */
 	public function read_from( int $pos ): \Generator {
@@ -95,7 +95,7 @@ final class Manifest {
 	}
 
 	/**
-	 * Recorre las entradas.
+	 * Iterates the entries.
 	 *
 	 * @return \Generator<int, array{0: string, 1: int, 2: string}>
 	 */

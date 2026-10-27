@@ -1,6 +1,6 @@
 <?php
 /**
- * Ajustes de conexión de este sitio.
+ * Connection settings for this site.
  *
  * @package Siteferry
  */
@@ -8,8 +8,8 @@
 namespace Siteferry\Support;
 
 /**
- * Permisos para que otros sitios hagan pull/push y la clave compartida. Todo vive en opciones
- * siteferry_*, que no se exportan y se conservan al reemplazar la base de datos.
+ * Permissions that let other sites pull/push, and the shared key. Everything lives in
+ * siteferry_* options, which are not exported and are kept when the database is replaced.
  */
 final class Settings {
 
@@ -17,7 +17,7 @@ final class Settings {
 	private const KEY    = 'siteferry_connection_key';
 
 	/**
-	 * Ajustes con sus valores por defecto (todo cerrado; verificar SSL siempre).
+	 * Settings with their default values (everything closed; always verify SSL).
 	 *
 	 * @return array{allow_pull: bool, allow_pull_files: bool, allow_push: bool, allow_push_code: bool, verify_ssl: bool}
 	 */
@@ -33,7 +33,7 @@ final class Settings {
 	}
 
 	/**
-	 * Guarda los valores indicados.
+	 * Saves the given values.
 	 *
 	 * @param array $values allow_pull, allow_pull_files, allow_push, allow_push_code, verify_ssl.
 	 */
@@ -49,7 +49,7 @@ final class Settings {
 	}
 
 	/**
-	 * Clave compartida de este sitio (se crea la primera vez).
+	 * This site's shared key (created on first use).
 	 */
 	public static function key(): string {
 		$key = (string) get_option( self::KEY );
@@ -57,7 +57,7 @@ final class Settings {
 	}
 
 	/**
-	 * Nueva clave: los sitios que tenían la anterior dejan de poder conectarse.
+	 * New key: sites that had the previous one can no longer connect.
 	 */
 	public static function regenerate(): string {
 		$key = wp_generate_password( 40, false );
@@ -66,7 +66,7 @@ final class Settings {
 	}
 
 	/**
-	 * Texto que se copia en el otro sitio.
+	 * Text to copy into the other site.
 	 */
 	public static function connection(): string {
 		return home_url() . "\n" . self::key();

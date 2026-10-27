@@ -1,5 +1,5 @@
 #!/bin/sh
-# Zip instalable desde el último commit (lo marcado export-ignore en .gitattributes queda fuera).
+# Installable zip from the latest commit (anything marked export-ignore in .gitattributes is left out).
 set -e
 cd "$(dirname "$0")/.."
 version=$(sed -n 's/^ \* Version: *//p' siteferry.php)

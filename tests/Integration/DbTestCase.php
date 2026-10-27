@@ -1,6 +1,6 @@
 <?php
 /**
- * Base para pruebas contra MySQL real.
+ * Base class for tests against a real MySQL.
  *
  * @package Siteferry
  */
@@ -11,19 +11,19 @@ use Siteferry\Support\Db;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Crea bases de datos desechables. Necesita SITEFERRY_TEST_DB_HOST (y opcionalmente _USER, _PASS).
+ * Creates disposable databases. Needs SITEFERRY_TEST_DB_HOST (and optionally _USER, _PASS).
  */
 abstract class DbTestCase extends TestCase {
 
 	/**
-	 * Bases creadas en la prueba actual.
+	 * Databases created in the current test.
 	 *
 	 * @var list<string>
 	 */
 	private array $databases = array();
 
 	/**
-	 * Conexiones abiertas.
+	 * Open connections.
 	 *
 	 * @var list<\mysqli>
 	 */
@@ -33,7 +33,7 @@ abstract class DbTestCase extends TestCase {
 
 	protected function setUp(): void {
 		if ( ! getenv( 'SITEFERRY_TEST_DB_HOST' ) ) {
-			$this->markTestSkipped( 'Define SITEFERRY_TEST_DB_HOST para las pruebas de integración.' );
+			$this->markTestSkipped( 'Set SITEFERRY_TEST_DB_HOST to run the integration tests.' );
 		}
 		$this->storage = sys_get_temp_dir() . '/siteferry-' . bin2hex( random_bytes( 4 ) );
 		mkdir( $this->storage );
@@ -52,7 +52,7 @@ abstract class DbTestCase extends TestCase {
 	}
 
 	/**
-	 * Crea una base vacía y devuelve [Db, mysqli] conectados a ella.
+	 * Creates an empty database and returns [Db, mysqli] connected to it.
 	 *
 	 * @return array{0: Db, 1: \mysqli}
 	 */
@@ -68,9 +68,9 @@ abstract class DbTestCase extends TestCase {
 	}
 
 	/**
-	 * Ejecuta varias sentencias separadas por ";\n".
+	 * Runs several statements separated by ";\n".
 	 *
-	 * @param Db     $db  Conexión.
+	 * @param Db     $db  Connection.
 	 * @param string $sql SQL.
 	 */
 	protected function exec( Db $db, string $sql ): void {
@@ -82,17 +82,17 @@ abstract class DbTestCase extends TestCase {
 	/**
 	 * CHECKSUM TABLE.
 	 *
-	 * @param Db     $db    Conexión.
-	 * @param string $table Tabla.
+	 * @param Db     $db    Connection.
+	 * @param string $table Table.
 	 */
 	protected function checksum( Db $db, string $table ): string {
 		return (string) $db->rows( 'CHECKSUM TABLE `' . $table . '`' )[0]['Checksum'];
 	}
 
 	/**
-	 * Contexto de sitio para el Planner.
+	 * Site context for the Planner.
 	 *
-	 * @param string $prefix Prefijo de tablas.
+	 * @param string $prefix Table prefix.
 	 * @param string $home   URL.
 	 */
 	protected function site( string $prefix, string $home ): array {

@@ -1,11 +1,11 @@
 <?php
 /**
- * Bootstrap de PHPUnit: el motor no depende de WordPress.
+ * PHPUnit bootstrap: the engine does not depend on WordPress.
  *
  * @package Siteferry
  */
 
 require dirname( __DIR__ ) . '/vendor/autoload.php';
 
-// Igual que WordPress: los errores de mysqli se revisan a mano, no como excepciones.
+// Same as WordPress: mysqli errors are checked by hand, not thrown as exceptions.
 mysqli_report( MYSQLI_REPORT_OFF );

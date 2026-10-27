@@ -1,6 +1,6 @@
 <?php
 /**
- * Información de tablas y columnas.
+ * Table and column information.
  *
  * @package Siteferry
  */
@@ -10,45 +10,45 @@ namespace Siteferry\Engine;
 use Siteferry\Support\Db;
 
 /**
- * Lee la estructura de las tablas que se migran.
+ * Reads the structure of the tables being migrated.
  */
 final class Schema {
 
-	/** Tablas nuevas que reemplazarán a las vivas. */
+	/** New tables that will replace the live ones. */
 	public const TMP = '_sft_';
 
-	/** Tablas crudas cargadas desde un .sql. */
+	/** Raw tables loaded from a .sql file. */
 	public const RAW = '_sfr_';
 
-	/** Tablas viejas durante el cambio. */
+	/** Old tables during the swap. */
 	public const OLD = '_sfo_';
 
-	/** Cláusula de llave foránea tal como la escribe SHOW CREATE TABLE, y nada más. */
+	/** Foreign key clause exactly as SHOW CREATE TABLE writes it, and nothing else. */
 	private const FOREIGN_KEY = '/^CONSTRAINT `([^`]{1,64})` FOREIGN KEY \((`[^`]{1,64}`(?:, ?`[^`]{1,64}`)*)\) REFERENCES `([^`]{1,64})` \((`[^`]{1,64}`(?:, ?`[^`]{1,64}`)*)\)((?: ON (?:DELETE|UPDATE) (?:RESTRICT|CASCADE|SET NULL|NO ACTION|SET DEFAULT))*)$/i';
 
-	/** Largo máximo de un nombre de tabla para que quepa un prefijo temporal. */
+	/** Maximum table name length so a temporary prefix still fits. */
 	public const MAX_NAME = 64 - 5;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Db $db Conexión.
+	 * @param Db $db Connection.
 	 */
 	public function __construct( private Db $db ) {}
 
 	/**
-	 * Si el nombre es de una tabla temporal del plugin.
+	 * Whether the name belongs to a temporary plugin table.
 	 *
-	 * @param string $name Tabla.
+	 * @param string $name Table.
 	 */
 	public static function is_temp( string $name ): bool {
 		return str_starts_with( $name, self::TMP ) || str_starts_with( $name, self::RAW ) || str_starts_with( $name, self::OLD );
 	}
 
 	/**
-	 * Tablas base (sin vistas) con filas estimadas y tamaño.
+	 * Base tables (no views) with estimated rows and size.
 	 *
-	 * @param string $prefix Solo las que empiezan así (las temporales empiezan por "_lf").
+	 * @param string $prefix Only tables starting with this (temporary ones start with "_sf").
 	 * @return array<string, array{rows: int, bytes: int, avg: int}>
 	 */
 	public function stats( string $prefix = '' ): array {
@@ -71,9 +71,9 @@ final class Schema {
 	}
 
 	/**
-	 * Si existe la tabla.
+	 * Whether the table exists.
 	 *
-	 * @param string $name Tabla.
+	 * @param string $name Table.
 	 */
 	public function exists( string $name ): bool {
 		return null !== $this->db->value(
@@ -82,7 +82,7 @@ final class Schema {
 	}
 
 	/**
-	 * Tablas temporales del plugin que existan.
+	 * Existing temporary plugin tables.
 	 *
 	 * @return list<string>
 	 */
@@ -92,9 +92,9 @@ final class Schema {
 	}
 
 	/**
-	 * Columnas con su tipo simplificado.
+	 * Columns with their simplified type.
 	 *
-	 * @param string $table Tabla.
+	 * @param string $table Table.
 	 * @return list<array{name: string, kind: string}> kind: number | bit | binary | text | other.
 	 */
 	public function columns( string $table ): array {
@@ -109,9 +109,9 @@ final class Schema {
 	}
 
 	/**
-	 * Columnas de la clave primaria, en orden.
+	 * Primary key columns, in order.
 	 *
-	 * @param string $table Tabla.
+	 * @param string $table Table.
 	 * @return list<string>
 	 */
 	public function primary_key( string $table ): array {
@@ -121,12 +121,12 @@ final class Schema {
 	}
 
 	/**
-	 * CREATE TABLE de $source con el nombre $target, en una sola línea.
+	 * CREATE TABLE for $source under the name $target, on a single line.
 	 *
-	 * @param string $source     Tabla de origen.
-	 * @param string $target     Nombre para el CREATE.
-	 * @param bool   $defer_fks  Quitar las llaves foráneas y devolverlas aparte.
-	 * @return array{0: string, 1: list<string>} [CREATE, cláusulas FOREIGN KEY quitadas].
+	 * @param string $source     Source table.
+	 * @param string $target     Name for the CREATE.
+	 * @param bool   $defer_fks  Remove the foreign keys and return them separately.
+	 * @return array{0: string, 1: list<string>} [CREATE, removed FOREIGN KEY clauses].
 	 */
 	public function create_sql( string $source, string $target, bool $defer_fks ): array {
 		$rows   = $this->db->rows( 'SHOW CREATE TABLE ' . Db::ident( $source ) );
@@ -136,15 +136,15 @@ final class Schema {
 	}
 
 	/**
-	 * Quita las líneas FOREIGN KEY de un CREATE TABLE con formato de una definición por línea
-	 * (el de SHOW CREATE TABLE y mysqldump) y lo deja en una sola línea.
+	 * Removes the FOREIGN KEY lines from a CREATE TABLE formatted with one definition per line
+	 * (as SHOW CREATE TABLE and mysqldump write it) and collapses it onto a single line.
 	 *
 	 * @param string $create CREATE TABLE.
-	 * @param bool   $remove Quitar las llaves foráneas.
+	 * @param bool   $remove Remove the foreign keys.
 	 * @return array{0: string, 1: list<string>}
 	 */
 	public static function split_foreign_keys( string $create, bool $remove = true ): array {
-		// ponytail: si el CREATE viene en una sola línea, las llaves foráneas no se separan.
+		// ponytail: if the CREATE comes on a single line, the foreign keys are not split out.
 		$keep = array();
 		$fks  = array();
 		foreach ( preg_split( '/\R/', trim( $create ) ) as $line ) {
@@ -165,9 +165,9 @@ final class Schema {
 	}
 
 	/**
-	 * Tipo simplificado a partir del tipo de columna de MySQL.
+	 * Simplified type derived from the MySQL column type.
 	 *
-	 * @param string $type Tipo, p. ej. "bigint(20) unsigned".
+	 * @param string $type Type, e.g. "bigint(20) unsigned".
 	 */
 	private static function kind( string $type ): string {
 		$type = strtolower( $type );
@@ -187,17 +187,17 @@ final class Schema {
 	}
 
 	/**
-	 * Colaciones que conoce este servidor (se cargan al primer uso).
+	 * Collations this server knows (loaded on first use).
 	 *
 	 * @var array<string, int>|null
 	 */
 	private ?array $collations = null;
 
 	/**
-	 * Cambia las colaciones que este servidor no conoce por la más cercana que sí tenga
-	 * (p. ej. utf8mb4_0900_ai_ci de MySQL 8 al importar en MariaDB).
+	 * Replaces collations this server does not know with the closest one it has
+	 * (e.g. MySQL 8's utf8mb4_0900_ai_ci when importing into MariaDB).
 	 *
-	 * @param string $sql Definición de la tabla.
+	 * @param string $sql Table definition.
 	 */
 	public function known_collations( string $sql ): string {
 		$this->collations ??= array_flip( array_column( $this->db->rows( 'SHOW COLLATION' ), 'Collation' ) );
@@ -222,14 +222,14 @@ final class Schema {
 	}
 
 	/**
-	 * Valida una llave foránea que llega de otro sitio y la devuelve apuntando a la tabla de
-	 * este sitio. Solo acepta la forma exacta de SHOW CREATE TABLE (nada de SQL adicional) y
-	 * una tabla referenciada con el prefijo indicado.
+	 * Validates a foreign key coming from another site and returns it pointing at this site's
+	 * table. Only accepts the exact SHOW CREATE TABLE form (no extra SQL) and a referenced
+	 * table with the given prefix.
 	 *
-	 * @param string                $clause  Cláusula recibida.
-	 * @param array<string, string> $ref_map Nombre en el origen => nombre aquí.
-	 * @param string                $prefix  Prefijo de tablas de este sitio.
-	 * @return string|null Cláusula segura, o null si no es válida.
+	 * @param string                $clause  Received clause.
+	 * @param array<string, string> $ref_map Name on the source => name here.
+	 * @param string                $prefix  Table prefix of this site.
+	 * @return string|null Safe clause, or null if it is not valid.
 	 */
 	public static function foreign_key( string $clause, array $ref_map, string $prefix ): ?string {
 		if ( ! preg_match( self::FOREIGN_KEY, trim( $clause ), $m ) ) {
@@ -243,11 +243,11 @@ final class Schema {
 	}
 
 	/**
-	 * Si una sentencia que llega de otro sitio es segura de ejecutar: solo puede crear, llenar o
-	 * borrar UNA tabla temporal _sft_, y nada en ella puede leer, enlazar o escribir fuera de esa tabla.
+	 * Whether a statement coming from another site is safe to run: it may only create, fill or
+	 * drop ONE temporary _sft_ table, and nothing in it may read from, link to or write outside that table.
 	 *
-	 * @param string      $sql   Sentencia.
-	 * @param string|null $table Tabla exacta esperada (null = cualquier _sft_).
+	 * @param string      $sql   Statement.
+	 * @param string|null $table Exact table expected (null = any _sft_).
 	 */
 	public static function safe_temp_statement( string $sql, ?string $table = null ): bool {
 		$name = null === $table ? '_sft_[A-Za-z0-9_$]{1,59}' : preg_quote( $table, '/' );
@@ -258,15 +258,15 @@ final class Schema {
 			return false;
 		}
 		$plain = self::strip_literals( $sql );
-		// Ningún comentario fuera de los textos: una comilla dentro de un comentario engañaría al
-		// análisis, y /*!…*/ ejecuta su contenido. El copiador nunca escribe comentarios.
+		// No comments outside the string literals: a quote inside a comment would fool the
+		// analysis, and /*!…*/ runs its contents. The copier never writes comments.
 		if ( null === $plain || preg_match( '/\/\*|\*\/|#|--/', $plain ) ) {
 			return false;
 		}
 		if ( 'INSERT INTO' === $m[1] ) {
-			// Solo VALUES con literales: NULL, número, hexadecimal o texto (ya vaciado). Se valida sin
-			// una expresión repetida sobre toda la sentencia: con sentencias de cientos de KB esa
-			// expresión agota la pila de PCRE.
+			// Only VALUES with literals: NULL, number, hexadecimal or string (already emptied). Validated without
+			// a repeated expression over the whole statement: with statements of hundreds of KB that
+			// expression exhausts the PCRE stack.
 			if ( ! preg_match( '/^INSERT INTO `` \(``(?:,``)*\) VALUES /', $plain, $head ) ) {
 				return false;
 			}
@@ -281,8 +281,8 @@ final class Schema {
 			}
 			return true;
 		}
-		// CREATE: columnas e índices, y después solo las opciones de tabla que escribe SHOW CREATE TABLE,
-		// con un único ENGINE de la lista. Nada que lea otras tablas, las enlace o escriba en disco.
+		// CREATE: columns and indexes, then only the table options SHOW CREATE TABLE writes,
+		// with a single ENGINE from the list. Nothing that reads other tables, links them or writes to disk.
 		$at = strrpos( $plain, ') ENGINE=' );
 		if ( false === $at || 1 !== preg_match_all( '/\\bENGINE\\b/i', $plain ) ) {
 			return false;
@@ -300,11 +300,11 @@ final class Schema {
 	}
 
 	/**
-	 * La sentencia con cada texto '…', identificador `…` o "…" reducido a sus comillas vacías,
-	 * para analizar la estructura sin que el contenido de los valores cuente. Null si una
-	 * comilla queda sin cerrar.
+	 * The statement with every '…' string, `…` identifier or "…" string reduced to its empty quotes,
+	 * so the structure can be analyzed without the contents of the values counting. Null if a
+	 * quote is left unclosed.
 	 *
-	 * @param string $sql Sentencia.
+	 * @param string $sql Statement.
 	 */
 	private static function strip_literals( string $sql ): ?string {
 		$out = '';
@@ -317,7 +317,7 @@ final class Schema {
 				break;
 			}
 			$quote = $sql[ $start ];
-			$stops = '`' === $quote ? '`' : $quote . '\\'; // En identificadores la barra no escapa.
+			$stops = '`' === $quote ? '`' : $quote . '\\'; // In identifiers the backslash does not escape.
 			$k     = $start + 1;
 			while ( true ) {
 				$k += strcspn( $sql, $stops, $k );
@@ -329,7 +329,7 @@ final class Schema {
 					continue;
 				}
 				if ( $k + 1 < $len && $sql[ $k + 1 ] === $quote ) {
-					$k += 2; // Comilla doblada dentro del texto.
+					$k += 2; // Doubled quote inside the string.
 					continue;
 				}
 				break;

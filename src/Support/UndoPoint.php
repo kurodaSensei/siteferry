@@ -1,6 +1,6 @@
 <?php
 /**
- * Punto para deshacer la última operación que modificó este sitio.
+ * Undo point for the last operation that modified this site.
  *
  * @package Siteferry
  */
@@ -10,17 +10,17 @@ namespace Siteferry\Support;
 use Siteferry\Files\Roots;
 
 /**
- * Qué se puede restaurar de la última operación: el backup de la base de datos y la sesión de
- * archivos (con lo reemplazado y la lista de lo que llegó). Vive en una opción siteferry_*, así que
- * sobrevive al propio reemplazo de la base de datos. Las rutas se guardan relativas a la carpeta
- * de trabajo: la web y WP-CLI pueden ver el sitio por rutas distintas (despliegues con symlink).
+ * What can be restored from the last operation: the database backup and the files session
+ * (with what was replaced and the list of what arrived). It lives in a siteferry_* option, so it
+ * survives the database replacement itself. Paths are stored relative to the working folder:
+ * the web and WP-CLI may see the site through different paths (symlinked deployments).
  */
 final class UndoPoint {
 
 	private const OPTION = 'siteferry_undo';
 
 	/**
-	 * Punto actual, solo con las partes que siguen existiendo (los backups se borran a los 7 días).
+	 * Current point, with only the parts that still exist (backups are deleted after 7 days).
 	 */
 	public static function get(): ?array {
 		$point = get_option( self::OPTION );
@@ -37,13 +37,13 @@ final class UndoPoint {
 	}
 
 	/**
-	 * Registra (o completa, si es la misma operación) el punto de deshacer.
+	 * Records the undo point (or completes it, if it is the same operation).
 	 *
-	 * @param string      $id        Operación (las partes de un mismo push llegan por separado).
-	 * @param string      $label     Descripción.
-	 * @param string|null $db_backup Backup de la BD.
-	 * @param string|null $files_dir Sesión de archivos.
-	 * @param string[]    $roots     Carpetas tocadas.
+	 * @param string      $id        Operation (the parts of a single push arrive separately).
+	 * @param string      $label     Description.
+	 * @param string|null $db_backup Database backup.
+	 * @param string|null $files_dir Files session.
+	 * @param string[]    $roots     Folders touched.
 	 */
 	public static function record( string $id, string $label, ?string $db_backup, ?string $files_dir, array $roots ): void {
 		$current = get_option( self::OPTION );
@@ -63,7 +63,7 @@ final class UndoPoint {
 	}
 
 	/**
-	 * Punto a partir de un job local terminado (reemplazo, importación o pull).
+	 * Point built from a finished local job (replace, import or pull).
 	 *
 	 * @param array $job Job.
 	 */
@@ -72,20 +72,20 @@ final class UndoPoint {
 		$dir    = $job['site']['storage'] . '/files-' . $job['id'];
 		$roots  = array_keys( (array) ( $job['file_stats'] ?? array() ) );
 		if ( ! ( $backup && is_file( $backup ) ) && ! ( $roots && is_dir( $dir ) ) ) {
-			// Sin backup de esta operación: un punto anterior ya no sirve (restaurarlo desharía también esta).
+			// No backup from this operation: an earlier point is no longer valid (restoring it would also undo this one).
 			self::clear();
 			return;
 		}
 		$labels = array(
-			'replace' => 'Buscar y reemplazar',
-			'import'  => 'Importación',
-			'pull'    => 'Pull desde ' . ( $job['remote']['home'] ?? 'otro sitio' ),
+			'replace' => 'Search-replace',
+			'import'  => 'Import',
+			'pull'    => 'Pull from ' . ( $job['remote']['home'] ?? 'another site' ),
 		);
 		self::record( $job['id'], $labels[ $job['intent'] ] ?? $job['intent'], $backup, $roots ? $dir : null, $roots );
 	}
 
 	/**
-	 * Ya no hay nada que deshacer.
+	 * There is nothing left to undo.
 	 */
 	public static function clear(): void {
 		delete_option( self::OPTION );

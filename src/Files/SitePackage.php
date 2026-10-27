@@ -1,6 +1,6 @@
 <?php
 /**
- * Paquete de sitio completo (.sfy).
+ * Full site package (.sfy).
  *
  * @package Siteferry
  */
@@ -8,57 +8,57 @@
 namespace Siteferry\Files;
 
 /**
- * Formato: "SFYSITE1 {metadatos JSON}\n" y después bloques, cada uno con una línea JSON
- * {"type":"db"|"files","root":…,"length":N}\n seguida de N bytes:
- * - db: un tramo del dump .sql.gz (los tramos van en orden);
- * - files: un paquete de archivos (Package) de una carpeta.
- * Se escribe agregando bloques al final, así una exportación larga avanza por peticiones sin
- * reescribir nada (un ZIP se reescribiría entero en cada una).
+ * Format: "SFYSITE1 {JSON metadata}\n" followed by blocks, each with a JSON line
+ * {"type":"db"|"files","root":…,"length":N}\n followed by N bytes:
+ * - db: a chunk of the .sql.gz dump (chunks are in order);
+ * - files: a file package (Package) for one folder.
+ * It is written by appending blocks at the end, so a long export advances request by request
+ * without rewriting anything (a ZIP would be rewritten in full on each one).
  */
 final class SitePackage {
 
 	private const MAGIC = 'SFYSITE1 ';
 
-	/** Tamaño máximo de un bloque. */
+	/** Maximum block size. */
 	public const MAX_FRAME = 64 * 1024 * 1024;
 
 	/**
-	 * Crea el paquete con sus metadatos.
+	 * Creates the package with its metadata.
 	 *
-	 * @param string $path Archivo.
-	 * @param array  $meta Metadatos (sitio, prefijo, carpetas…).
+	 * @param string $path File.
+	 * @param array  $meta Metadata (site, prefix, folders…).
 	 *
-	 * @throws \RuntimeException Si no se puede escribir.
+	 * @throws \RuntimeException If it cannot be written.
 	 */
 	public static function start( string $path, array $meta ): void {
 		if ( false === file_put_contents( $path, self::MAGIC . self::json( $meta ) . "\n" ) ) {
-			throw new \RuntimeException( 'No se puede escribir ' . $path );
+			throw new \RuntimeException( 'Cannot write ' . $path );
 		}
 	}
 
 	/**
-	 * Agrega un bloque al final.
+	 * Appends a block at the end.
 	 *
-	 * @param string $path  Archivo.
-	 * @param array  $frame type y, en files, root.
-	 * @param string $bytes Contenido.
+	 * @param string $path  File.
+	 * @param array  $frame type and, for files, root.
+	 * @param string $bytes Content.
 	 *
-	 * @throws \RuntimeException Si no se puede escribir.
+	 * @throws \RuntimeException If it cannot be written.
 	 */
 	public static function append( string $path, array $frame, string $bytes ): void {
 		$frame['length'] = strlen( $bytes );
 		$data            = self::json( $frame ) . "\n" . $bytes;
 		if ( file_put_contents( $path, $data, FILE_APPEND ) !== strlen( $data ) ) {
-			throw new \RuntimeException( 'Escritura incompleta en ' . $path . ' (¿disco lleno?)' );
+			throw new \RuntimeException( 'Incomplete write to ' . $path . ' (disk full?)' );
 		}
 	}
 
 	/**
-	 * Metadatos del paquete.
+	 * Package metadata.
 	 *
-	 * @param string $path Archivo.
+	 * @param string $path File.
 	 *
-	 * @throws \RuntimeException Si no es un paquete válido.
+	 * @throws \RuntimeException If it is not a valid package.
 	 */
 	public static function meta( string $path ): array {
 		$handle = fopen( $path, 'rb' );
@@ -68,27 +68,27 @@ final class SitePackage {
 		}
 		$meta = is_string( $line ) && str_starts_with( $line, self::MAGIC ) ? json_decode( substr( $line, strlen( self::MAGIC ) ), true ) : null;
 		if ( ! is_array( $meta ) ) {
-			throw new \RuntimeException( 'No es un paquete de Siteferry (.sfy) válido.' );
+			throw new \RuntimeException( 'Not a valid Siteferry package (.sfy).' );
 		}
 		return $meta;
 	}
 
 	/**
-	 * Lee el bloque que empieza en $offset (0 = el primero, tras los metadatos).
+	 * Reads the block starting at $offset (0 = the first one, after the metadata).
 	 *
-	 * @param string $path   Archivo.
-	 * @param int    $offset Byte donde empieza el bloque.
-	 * @return array{frame: array, bytes: string, next: int}|null Null al llegar al final.
+	 * @param string $path   File.
+	 * @param int    $offset Byte where the block starts.
+	 * @return array{frame: array, bytes: string, next: int}|null Null at the end.
 	 *
-	 * @throws \RuntimeException Si el bloque está mal formado o cortado.
+	 * @throws \RuntimeException If the block is malformed or truncated.
 	 */
 	public static function read( string $path, int $offset ): ?array {
 		$handle = fopen( $path, 'rb' );
 		if ( ! $handle ) {
-			throw new \RuntimeException( 'No se puede leer ' . $path );
+			throw new \RuntimeException( 'Cannot read ' . $path );
 		}
 		if ( 0 === $offset ) {
-			fgets( $handle, 1024 * 1024 ); // Metadatos.
+			fgets( $handle, 1024 * 1024 ); // Metadata.
 		} else {
 			fseek( $handle, $offset );
 		}
@@ -103,13 +103,13 @@ final class SitePackage {
 		if ( ! is_int( $length ) || $length < 0 || $length > self::MAX_FRAME || ! in_array( $type, array( 'db', 'files' ), true )
 			|| ( 'files' === $type && ! in_array( $frame['root'] ?? null, Roots::ALL, true ) ) ) {
 			fclose( $handle );
-			throw new \RuntimeException( 'Bloque de paquete inválido.' );
+			throw new \RuntimeException( 'Invalid package block.' );
 		}
 		$bytes = $length > 0 ? (string) fread( $handle, $length ) : '';
 		$next  = (int) ftell( $handle );
 		fclose( $handle );
 		if ( strlen( $bytes ) !== $length ) {
-			throw new \RuntimeException( 'El paquete está cortado (¿descarga incompleta?).' );
+			throw new \RuntimeException( 'The package is truncated (incomplete download?).' );
 		}
 		return array(
 			'frame' => $frame,
@@ -119,9 +119,9 @@ final class SitePackage {
 	}
 
 	/**
-	 * JSON en una línea.
+	 * Single-line JSON.
 	 *
-	 * @param array $data Datos.
+	 * @param array $data Data.
 	 */
 	private static function json( array $data ): string {
 		return (string) json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode

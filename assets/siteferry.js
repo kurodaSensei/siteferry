@@ -1,34 +1,45 @@
 /**
- * Siteferry: envía el formulario y avanza el job paso a paso.
- * El cursor vive en el servidor, así que reintentar un paso es seguro.
+ * Siteferry: submits the form and advances the job step by step.
+ * The cursor lives on the server, so retrying a step is safe.
  */
 ( function () {
 	'use strict';
 
 	const data = window.siteferryData;
 	const api = window.wp.apiFetch;
+	const { __, sprintf } = window.wp.i18n;
 	const NS = '/siteferry/v1';
 	const $ = ( id ) => document.getElementById( id );
 	const form = $( 'siteferry-form' );
 	const panel = $( 'siteferry-progress' );
 	const sleep = ( ms ) => new Promise( ( r ) => setTimeout( r, ms ) );
+	// Lists here never have more than two items.
+	/* translators: 1: first item, 2: second item */
+	const list = ( items ) => ( items.length > 1 ? sprintf( __( '%1$s and %2$s', 'siteferry' ), items[ 0 ], items[ 1 ] ) : items[ 0 ] || '' );
 
-	// El mu-plugin de compatibilidad solo actúa si llega esta cabecera.
+	// The compatibility mu-plugin only acts when this header is present.
 	api.use( ( options, next ) => {
 		options.headers = Object.assign( {}, options.headers, { 'X-Siteferry-Compat': data.compatKey } );
 		return next( options );
 	} );
 
 	const STATUS = {
-		pending: 'En cola…',
-		running: 'Trabajando…',
-		done: 'Terminado',
-		failed: 'Falló',
-		cancelled: 'Cancelado',
+		pending: __( 'Queued…', 'siteferry' ),
+		running: __( 'Working…', 'siteferry' ),
+		done: __( 'Done', 'siteferry' ),
+		failed: __( 'Failed', 'siteferry' ),
+		cancelled: __( 'Cancelled', 'siteferry' ),
 	};
-	const INTENT = { export: 'Exportación', replace: 'Buscar y reemplazar', import: 'Importación', pull: 'Pull', push: 'Push', undo: 'Deshacer' };
+	const INTENT = {
+		export: __( 'Export', 'siteferry' ),
+		replace: __( 'Search and replace', 'siteferry' ),
+		import: __( 'Import', 'siteferry' ),
+		pull: __( 'Pull', 'siteferry' ),
+		push: __( 'Push', 'siteferry' ),
+		undo: __( 'Undo', 'siteferry' ),
+	};
 
-	// --- Formulario -------------------------------------------------------
+	// --- Form ---------------------------------------------------------------
 
 	const intent = () => form.querySelector( 'input[name="intent"]:checked' ).value;
 
@@ -40,18 +51,18 @@
 		form.querySelectorAll( '[data-hide]' ).forEach( ( el ) => {
 			el.hidden = el.dataset.hide.split( ' ' ).includes( current );
 		} );
-		// Sin base de datos en un pull/push no hay tablas ni reemplazos que elegir.
+		// A pull/push without the database has no tables or replacements to choose.
 		const noDatabase = remoteIntent() && ! form.querySelector( 'input[name="database"]' ).checked;
 		tableList.closest( 'details' ).hidden = current === 'import' || noDatabase;
 		showTables();
 	}
 
-	// --- Tablas: las de este sitio, o las del remoto en un pull ------------
+	// --- Tables: this site's, or the remote's on a pull ----------------------
 
 	const tableList = $( 'siteferry-table-list' );
 	const localTables = [ ...tableList.children ];
 	const tablesTitle = $( 'siteferry-tables-title' );
-	let remote = null; // Respuesta de "hello" del sitio remoto.
+	let remote = null; // The remote site's "hello" response.
 
 	function showTables() {
 		if ( intent() !== 'pull' ) {
@@ -63,10 +74,11 @@
 		} else {
 			const li = document.createElement( 'li' );
 			li.className = 'description';
-			li.textContent = 'Conecta con el sitio remoto para ver sus tablas.';
+			li.textContent = __( 'Connect to the remote site to see its tables.', 'siteferry' );
 			tableList.replaceChildren( li );
 		}
-		tablesTitle.textContent = `Tablas (${ tableList.querySelectorAll( 'input' ).length })`;
+		/* translators: %d: number of tables */
+		tablesTitle.textContent = sprintf( __( 'Tables (%d)', 'siteferry' ), tableList.querySelectorAll( 'input' ).length );
 	}
 
 	function tableItem( name, info ) {
@@ -89,15 +101,24 @@
 
 	$( 'siteferry-connect' ).addEventListener( 'click', async () => {
 		const status = $( 'siteferry-remote-info' );
-		status.textContent = 'Conectando…';
+		status.textContent = __( 'Connecting…', 'siteferry' );
 		remote = null;
 		try {
 			remote = await api( { path: `${ NS }/remote/hello`, method: 'POST', data: { connection: $( 'siteferry-connection' ).value } } );
-			const allowed = [ remote.allow_pull ? 'pull' : '', remote.allow_push ? 'push' : '' ].filter( Boolean ).join( ' y ' ) || 'nada (actívalo allá)';
-			const yes = ( v ) => ( v ? 'sí' : 'no' );
-			status.textContent = `Conectado con ${ remote.home } · prefijo ${ remote.prefix } · ${ Object.keys( remote.tables ).length } tablas · permite ${ allowed } · pull de archivos: ${ yes( remote.allow_pull_files ) } · push de código: ${ yes( remote.allow_push_code ) }.`;
+			const allowed = list( [ remote.allow_pull ? 'pull' : '', remote.allow_push ? 'push' : '' ].filter( Boolean ) ) || __( 'nothing (enable it there)', 'siteferry' );
+			const yes = ( v ) => ( v ? __( 'yes', 'siteferry' ) : __( 'no', 'siteferry' ) );
+			status.textContent = sprintf(
+				/* translators: 1: remote URL, 2: table prefix, 3: number of tables, 4: allowed operations, 5: file pull yes/no, 6: code push yes/no */
+				__( 'Connected to %1$s · prefix %2$s · %3$d tables · allows %4$s · file pull: %5$s · code push: %6$s.', 'siteferry' ),
+				remote.home,
+				remote.prefix,
+				Object.keys( remote.tables ).length,
+				allowed,
+				yes( remote.allow_pull_files ),
+				yes( remote.allow_push_code )
+			);
 		} catch ( err ) {
-			status.textContent = ( err && err.message ) || 'No se pudo conectar.';
+			status.textContent = ( err && err.message ) || __( 'Could not connect.', 'siteferry' );
 		}
 		showTables();
 	} );
@@ -147,7 +168,7 @@
 				find: row.querySelector( '[name="find"]' ).value,
 				replace: row.querySelector( '[name="replace"]' ).value,
 			} ) )
-			// La fila prellenada con la URL actual y sin destino no es un reemplazo: se ignora.
+			// The row prefilled with the current URL and no replacement is not a pair: ignore it.
 			.filter( ( p ) => p.find !== '' && ! ( p.replace === '' && p.find === data.home ) );
 		return {
 			intent: intent(),
@@ -171,14 +192,14 @@
 		const body = payload();
 
 		if ( body.intent === 'replace' && ! body.pairs.length ) {
-			return alert( 'Indica al menos un texto a buscar.' );
+			return alert( __( 'Enter at least one text to find.', 'siteferry' ) );
 		}
 		if ( body.intent === 'import' ) {
 			const file = $( 'siteferry-file' ).files[ 0 ];
 			if ( ! file ) {
-				return alert( 'Elige el archivo a importar.' );
+				return alert( __( 'Choose the file to import.', 'siteferry' ) );
 			}
-			if ( ! confirm( 'La base de datos de este sitio se reemplazará por la del archivo. ¿Continuar?' ) ) {
+			if ( ! confirm( __( 'This site’s database will be replaced with the one in the file. Continue?', 'siteferry' ) ) ) {
 				return;
 			}
 			try {
@@ -186,27 +207,41 @@
 			} catch ( err ) {
 				return showError( err );
 			}
-		} else if ( body.intent === 'replace' && ! confirm( 'Se modificarán los datos de este sitio. ¿Continuar?' ) ) {
+		} else if ( body.intent === 'replace' && ! confirm( __( 'This site’s data will be modified. Continue?', 'siteferry' ) ) ) {
 			return;
 		} else if ( body.intent === 'pull' || body.intent === 'push' ) {
 			if ( ! body.connection ) {
-				return alert( 'Pega la información de conexión del otro sitio.' );
+				return alert( __( 'Paste the other site’s connection info.', 'siteferry' ) );
 			}
 			if ( ! body.database && ! body.files.length ) {
-				return alert( 'Elige la base de datos, archivos o ambos.' );
+				return alert( __( 'Choose the database, files, or both.', 'siteferry' ) );
 			}
 			const code = body.files.filter( ( f ) => f !== 'uploads' );
 			if ( body.intent === 'pull' && body.files.length && remote && ! remote.allow_pull_files ) {
-				return alert( 'El otro sitio no permite pull de archivos. Actívalo allá o quita las casillas de archivos.' );
+				return alert( __( 'The other site does not allow file pulls. Enable it there or clear the file checkboxes.', 'siteferry' ) );
 			}
 			if ( body.intent === 'push' && code.length && remote && ! remote.allow_push_code ) {
-				return alert( 'El otro sitio no permite push de código (temas y plugins). Actívalo allá o quita esas casillas.' );
+				return alert( __( 'The other site does not allow code pushes (themes and plugins). Enable it there or clear those checkboxes.', 'siteferry' ) );
 			}
-			const other = remote ? remote.home : 'el otro sitio';
-			const what = [ body.database ? 'la base de datos' : '', body.files.length ? `archivos (${ body.files.join( ', ' ) })` : '' ].filter( Boolean ).join( ' y ' );
+			const other = remote ? remote.home : __( 'the other site', 'siteferry' );
+			const what = list( [
+				body.database ? __( 'the database', 'siteferry' ) : '',
+				/* translators: %s: list of folders */
+				body.files.length ? sprintf( __( 'files (%s)', 'siteferry' ), body.files.join( ', ' ) ) : '',
+			].filter( Boolean ) );
 			const question = body.intent === 'pull'
-				? `Se reemplazarán ${ what } de ESTE sitio por los de ${ other }. ¿Continuar?`
-				: `Se reemplazarán ${ what } de ${ other } por los de este sitio. ¿Continuar?`;
+				? sprintf(
+					/* translators: 1: what gets replaced, 2: other site URL */
+					__( '%1$s on THIS site will be replaced with the ones from %2$s. Continue?', 'siteferry' ),
+					what,
+					other
+				)
+				: sprintf(
+					/* translators: 1: what gets replaced, 2: other site URL */
+					__( '%1$s on %2$s will be replaced with the ones from this site. Continue?', 'siteferry' ),
+					what,
+					other
+				);
 			if ( ! confirm( question ) ) {
 				return;
 			}
@@ -220,10 +255,10 @@
 		}
 	} );
 
-	// --- Subida por trozos -----------------------------------------------
+	// --- Chunked upload -----------------------------------------------------
 
 	async function upload( file ) {
-		showPanel( 'Subiendo archivo…' );
+		showPanel( __( 'Uploading file…', 'siteferry' ) );
 		let token = '';
 		let ext = '';
 		for ( let offset = 0; offset < file.size; ) {
@@ -237,12 +272,13 @@
 			ext = res.ext;
 			offset = res.size;
 			$( 'siteferry-bar' ).value = Math.floor( ( offset * 100 ) / file.size );
-			$( 'siteferry-step' ).textContent = `${ size( offset ) } de ${ size( file.size ) }`;
+			/* translators: 1: bytes uploaded, 2: file size */
+			$( 'siteferry-step' ).textContent = sprintf( __( '%1$s of %2$s', 'siteferry' ), size( offset ), size( file.size ) );
 		}
 		return { upload: token, ext };
 	}
 
-	// --- Bucle de pasos ---------------------------------------------------
+	// --- Step loop ----------------------------------------------------------
 
 	let running = false;
 
@@ -263,7 +299,7 @@
 		render( job );
 	}
 
-	// Reintenta cortes de red y "otro paso en curso"; los errores de la operación no se reintentan.
+	// Retries network drops and "another step in progress"; operation errors are not retried.
 	async function retry( fn ) {
 		for ( let attempt = 1; ; attempt++ ) {
 			try {
@@ -294,14 +330,14 @@
 		const msg = $( 'siteferry-message' );
 		msg.replaceChildren();
 		if ( job.status === 'failed' ) {
-			notice( 'error', job.error + ' Las tablas del sitio no se modificaron; «Cancelar» limpia lo temporal.' );
+			notice( 'error', job.error + ' ' + __( 'The site’s tables were not modified; “Cancel” cleans up the temporary data.', 'siteferry' ) );
 		}
 		job.warnings.forEach( ( w ) => notice( 'warning', w ) );
 		if ( ! open ) {
 			refreshUndo();
 		}
 		if ( job.status === 'done' && ( job.intent === 'import' || job.intent === 'undo' || ( job.intent === 'pull' && job.database ) ) ) {
-			notice( 'success', 'Terminado. Si se cerró tu sesión, vuelve a iniciar sesión con un usuario del sitio de origen.' );
+			notice( 'success', __( 'Done. If you were logged out, log in again with a user from the source site.', 'siteferry' ) );
 		}
 
 		const files = $( 'siteferry-files' );
@@ -310,12 +346,15 @@
 			const a = document.createElement( 'a' );
 			a.className = key === 'export' ? 'button button-primary' : 'button';
 			a.href = restUrl( `jobs/${ job.id }/download`, { file: key, _wpnonce: data.nonce } );
-			a.textContent = `${ key === 'export' ? 'Descargar' : 'Descargar backup' } (${ file.name }, ${ size( file.size ) })`;
+			const label = key === 'export'
+				? /* translators: 1: file name, 2: file size */ __( 'Download (%1$s, %2$s)', 'siteferry' )
+				: /* translators: 1: file name, 2: file size */ __( 'Download backup (%1$s, %2$s)', 'siteferry' );
+			a.textContent = sprintf( label, file.name, size( file.size ) );
 			files.append( a, ' ' );
 		} );
 	}
 
-	// Sirve con enlaces permanentes (/wp-json/…) y sin ellos (?rest_route=…).
+	// Works with pretty permalinks (/wp-json/…) and without them (?rest_route=…).
 	function restUrl( path, params ) {
 		const url = new URL( data.root );
 		if ( url.searchParams.has( 'rest_route' ) ) {
@@ -343,13 +382,13 @@
 	}
 
 	function showError( err, keepPanel ) {
-		const text = ( err && err.message ) || 'Error desconocido.';
+		const text = ( err && err.message ) || __( 'Unknown error.', 'siteferry' );
 		if ( ! keepPanel ) {
 			form.hidden = false;
 			panel.hidden = true;
 			return alert( text );
 		}
-		notice( 'error', text + ' Puedes continuar cuando se resuelva.' );
+		notice( 'error', text + ' ' + __( 'You can resume once it is fixed.', 'siteferry' ) );
 		$( 'siteferry-resume' ).hidden = false;
 	}
 
@@ -361,7 +400,7 @@
 		run( await api( { path: `${ NS }/jobs/current` } ) );
 	} );
 	$( 'siteferry-cancel' ).addEventListener( 'click', async () => {
-		if ( ! confirm( '¿Cancelar la operación? Se borran las tablas y archivos temporales.' ) ) {
+		if ( ! confirm( __( 'Cancel the operation? Temporary tables and files will be deleted.', 'siteferry' ) ) ) {
 			return;
 		}
 		running = false;
@@ -377,19 +416,20 @@
 		form.hidden = false;
 	} );
 
-	// --- Deshacer ----------------------------------------------------------
+	// --- Undo ---------------------------------------------------------------
 
 	const undoCard = $( 'siteferry-undo' );
 	async function refreshUndo() {
 		const point = await api( { path: `${ NS }/undo` } ).catch( () => null );
 		undoCard.hidden = ! point;
 		if ( point ) {
-			const what = [ point.db_backup ? 'base de datos' : '', point.roots.length ? `archivos (${ point.roots.join( ', ' ) })` : '' ].filter( Boolean ).join( ' y ' );
-			$( 'siteferry-undo-info' ).textContent = `${ point.label } · ${ new Date( point.time * 1000 ).toLocaleString() } · se restaura: ${ what }.`;
+			const what = list( [ point.db_backup ? __( 'database', 'siteferry' ) : '', point.roots.length ? `${ __( 'files', 'siteferry' ) } (${ point.roots.join( ', ' ) })` : '' ].filter( Boolean ) );
+			/* translators: 1: operation, 2: date, 3: what gets restored */
+			$( 'siteferry-undo-info' ).textContent = sprintf( __( '%1$s · %2$s · restores: %3$s.', 'siteferry' ), point.label, new Date( point.time * 1000 ).toLocaleString(), what );
 		}
 	}
 	$( 'siteferry-undo-run' ).addEventListener( 'click', async () => {
-		if ( ! confirm( 'Se restaurará el estado anterior a la última operación. Lo cambiado después en este sitio se pierde y no se puede deshacer a su vez. ¿Continuar?' ) ) {
+		if ( ! confirm( __( 'The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone. Continue?', 'siteferry' ) ) ) {
 			return;
 		}
 		try {
@@ -399,7 +439,7 @@
 		}
 	} );
 
-	// --- Conexión de este sitio ---------------------------------------------
+	// --- This site's connection ---------------------------------------------
 
 	const settings = $( 'siteferry-settings' );
 	const settingsStatus = $( 'siteferry-settings-status' );
@@ -409,10 +449,10 @@
 		}
 		try {
 			await api( { path: `${ NS }/settings`, method: 'POST', data: { [ e.target.name ]: e.target.checked } } );
-			settingsStatus.textContent = 'Guardado.';
+			settingsStatus.textContent = __( 'Saved.', 'siteferry' );
 		} catch ( err ) {
 			e.target.checked = ! e.target.checked;
-			settingsStatus.textContent = ( err && err.message ) || 'No se pudo guardar.';
+			settingsStatus.textContent = ( err && err.message ) || __( 'Could not save.', 'siteferry' );
 		}
 	} );
 	$( 'siteferry-copy-connection' ).addEventListener( 'click', async () => {
@@ -420,20 +460,20 @@
 		try {
 			await navigator.clipboard.writeText( text.value );
 		} catch ( err ) {
-			text.select(); // Sin permiso de portapapeles: queda seleccionado para Ctrl+C.
+			text.select(); // No clipboard permission: leave it selected for Ctrl+C.
 		}
-		settingsStatus.textContent = 'Copiado.';
+		settingsStatus.textContent = __( 'Copied.', 'siteferry' );
 	} );
 	$( 'siteferry-regenerate' ).addEventListener( 'click', async () => {
-		if ( ! confirm( 'Los sitios que usan la clave actual dejarán de poder conectarse. ¿Regenerar?' ) ) {
+		if ( ! confirm( __( 'Sites using the current key will no longer be able to connect. Regenerate?', 'siteferry' ) ) ) {
 			return;
 		}
 		const res = await api( { path: `${ NS }/settings/key`, method: 'POST' } );
 		$( 'siteferry-own-connection' ).value = res.connection;
-		settingsStatus.textContent = 'Clave nueva generada.';
+		settingsStatus.textContent = __( 'New key generated.', 'siteferry' );
 	} );
 
-	// Al cargar: si hay una operación sin terminar, se muestra para continuarla o cancelarla.
+	// On load: an unfinished operation is shown so it can be resumed or cancelled.
 	api( { path: `${ NS }/jobs/current` } ).then( ( job ) => {
 		if ( job && [ 'pending', 'running', 'failed' ].includes( job.status ) ) {
 			render( job );

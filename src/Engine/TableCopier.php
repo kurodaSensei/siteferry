@@ -1,6 +1,6 @@
 <?php
 /**
- * Copia una tabla por lotes, reemplazando en el camino.
+ * Copies a table in batches, replacing along the way.
  *
  * @package Siteferry
  */
@@ -10,26 +10,26 @@ namespace Siteferry\Engine;
 use Siteferry\Support\Db;
 
 /**
- * Lee filas de una tabla en orden de clave primaria (o por offset si no tiene),
- * aplica el Replacer a las columnas de texto y las escribe como INSERTs en un Sink.
+ * Reads rows from a table in primary key order (or by offset if it has none),
+ * applies the Replacer to the text columns and writes them as INSERTs into a Sink.
  */
 final class TableCopier {
 
-	/** Memoria aproximada para una página de filas. */
+	/** Approximate memory for one page of rows. */
 	private const PAGE_BYTES = 16 * 1024 * 1024;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Db            $db            Conexión.
-	 * @param Schema        $schema        Estructura.
-	 * @param Replacer|null $replacer      Reemplazos (null = copia literal).
-	 * @param int           $max_bytes     Tamaño máximo de un INSERT.
-	 * @param bool          $replace_guids Reemplazar también en la columna guid.
-	 * @param string        $prefix_from   Prefijo de tablas del origen.
-	 * @param string        $prefix_to     Prefijo de tablas del destino.
-	 * @param string        $options_table Tabla de opciones (nombre en el origen) cuyas filas siteferry_* no se copian:
-	 *                                     llevan claves del plugin y se conservan aparte al finalizar.
+	 * @param Db            $db            Connection.
+	 * @param Schema        $schema        Structure.
+	 * @param Replacer|null $replacer      Replacements (null = literal copy).
+	 * @param int           $max_bytes     Maximum size of an INSERT.
+	 * @param bool          $replace_guids Also replace in the guid column.
+	 * @param string        $prefix_from   Table prefix of the source.
+	 * @param string        $prefix_to     Table prefix of the destination.
+	 * @param string        $options_table Options table (name on the source) whose siteferry_* rows are not copied:
+	 *                                     they hold plugin keys and are kept aside on finalize.
 	 */
 	public function __construct(
 		private Db $db,
@@ -43,16 +43,16 @@ final class TableCopier {
 	) {}
 
 	/**
-	 * Copia un tramo de $source a $target.
+	 * Copies a chunk of $source into $target.
 	 *
-	 * @param string     $source    Tabla de origen.
-	 * @param string     $target    Tabla destino (nombre usado en el SQL).
-	 * @param string     $logical   Nombre de la tabla en el sitio de origen (sin prefijo temporal).
-	 * @param Sink       $sink      Destino de las sentencias.
-	 * @param array|null $cursor    Null para empezar: emite DROP + CREATE.
-	 * @param Budget     $budget    Tiempo disponible.
-	 * @param bool       $defer_fks Quitar las llaves foráneas del CREATE y devolverlas.
-	 * @return array{cursor: ?array, rows: int, fks: list<string>} cursor null = tabla terminada.
+	 * @param string     $source    Source table.
+	 * @param string     $target    Destination table (name used in the SQL).
+	 * @param string     $logical   Table name on the source site (without temporary prefix).
+	 * @param Sink       $sink      Destination for the statements.
+	 * @param array|null $cursor    Null to start: emits DROP + CREATE.
+	 * @param Budget     $budget    Available time.
+	 * @param bool       $defer_fks Remove the foreign keys from the CREATE and return them.
+	 * @return array{cursor: ?array, rows: int, fks: list<string>} cursor null = table finished.
 	 */
 	public function run( string $source, string $target, string $logical, Sink $sink, ?array $cursor, Budget $budget, bool $defer_fks ): array {
 		$columns = $this->schema->columns( $source );
@@ -112,9 +112,9 @@ final class TableCopier {
 	}
 
 	/**
-	 * Filas por página según el tamaño medio de fila.
+	 * Rows per page based on the average row size.
 	 *
-	 * @param string $table Tabla.
+	 * @param string $table Table.
 	 */
 	private function page_size( string $table ): int {
 		$avg = (int) $this->db->value(
@@ -124,13 +124,13 @@ final class TableCopier {
 	}
 
 	/**
-	 * SELECT de la siguiente página.
+	 * SELECT for the next page.
 	 *
-	 * @param string                                  $table   Tabla.
-	 * @param list<array{name: string, kind: string}> $columns Columnas.
-	 * @param list<string>                            $pk      Clave primaria.
-	 * @param array                                   $cursor  Posición.
-	 * @param int                                     $page    Filas.
+	 * @param string                                  $table   Table.
+	 * @param list<array{name: string, kind: string}> $columns Columns.
+	 * @param list<string>                            $pk      Primary key.
+	 * @param array                                   $cursor  Position.
+	 * @param int                                     $page    Rows.
 	 */
 	private function select( string $table, array $columns, array $pk, array $cursor, int $page ): string {
 		$exprs = array();
@@ -147,7 +147,7 @@ final class TableCopier {
 		$sql = 'SELECT ' . implode( ',', $exprs ) . ' FROM ' . Db::ident( $table );
 
 		if ( ! $pk ) {
-			// ponytail: sin clave primaria se pagina por offset (InnoDB recorre en el mismo orden); lento en tablas enormes sin PK.
+			// ponytail: without a primary key it paginates by offset (InnoDB scans in the same order); slow on huge tables without a PK.
 			return $sql . ' LIMIT ' . (int) $cursor['offset'] . ', ' . $page;
 		}
 		$cols = '(' . implode( ',', array_map( array( Db::class, 'ident' ), $pk ) ) . ')';
@@ -162,11 +162,11 @@ final class TableCopier {
 	}
 
 	/**
-	 * Literales SQL de una fila, con reemplazos aplicados.
+	 * SQL literals of a row, with replacements applied.
 	 *
-	 * @param string                 $logical Nombre de la tabla en el origen.
-	 * @param array<string, ?string> $row     Fila.
-	 * @param array<string, string>  $kinds   Tipo por columna.
+	 * @param string                 $logical Table name on the source.
+	 * @param array<string, ?string> $row     Row.
+	 * @param array<string, string>  $kinds   Type per column.
 	 * @return list<string>
 	 */
 	private function format_row( string $logical, array $row, array $kinds ): array {
@@ -184,11 +184,11 @@ final class TableCopier {
 	}
 
 	/**
-	 * Claves que llevan el prefijo de tablas dentro de los datos (capacidades y roles).
+	 * Keys that carry the table prefix inside the data (capabilities and roles).
 	 *
-	 * @param string $logical Tabla en el origen.
-	 * @param string $col     Columna.
-	 * @param string $value   Valor.
+	 * @param string $logical Table on the source.
+	 * @param string $col     Column.
+	 * @param string $value   Value.
 	 */
 	private function rewrite_prefix( string $logical, string $col, string $value ): string {
 		if ( $this->prefix_from === $this->prefix_to || '' === $this->prefix_from ) {
@@ -205,10 +205,10 @@ final class TableCopier {
 	}
 
 	/**
-	 * Valor como literal SQL.
+	 * Value as an SQL literal.
 	 *
-	 * @param ?string $value Valor (los binarios llegan en hexadecimal).
-	 * @param string  $kind  Tipo simplificado.
+	 * @param ?string $value Value (binaries arrive as hexadecimal).
+	 * @param string  $kind  Simplified type.
 	 */
 	private function literal( ?string $value, string $kind ): string {
 		if ( null === $value ) {

@@ -1,6 +1,6 @@
 <?php
 /**
- * Pull y push de archivos entre dos "sitios" (carpetas), con FileOps del lado remoto.
+ * File pull and push between two "sites" (folders), with FileOps on the remote side.
  *
  * @package Siteferry
  */
@@ -51,7 +51,7 @@ final class FileOpsTest extends TestCase {
 		);
 	}
 
-	/** El sitio "b" visto por la red: argumentos por JSON, binario aparte. */
+	/** Site "b" as seen over the network: arguments as JSON, binary sent separately. */
 	private function remote( array $perms ): \Closure {
 		$ops = new FileOps( $this->roots( 'b' ), "$this->tmp/b/storage", $perms );
 		return static function ( string $op, array $args, ?string $binary = null ) use ( $ops ): array {
@@ -83,7 +83,7 @@ final class FileOpsTest extends TestCase {
 		return $m;
 	}
 
-	/** @return array<string, string> ruta => md5 */
+	/** @return array<string, string> path => md5 */
 	private function tree( string $dir ): array {
 		$out = array();
 		$it  = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ) );
@@ -148,7 +148,7 @@ final class FileOpsTest extends TestCase {
 		$this->put( 'b', 'uploads/video.mp4', random_bytes( 1536 * 1024 ) );
 		$this->put( 'b', 'uploads/siteferry-xyz/backup.sql.gz', 'no viaja' );
 		$this->put( 'a', 'uploads/2024/05/igual.jpg', 'igual' );
-		$this->put( 'a', 'uploads/2024/06/cambiada.jpg', 'BBBB' ); // Mismo tamaño, otro contenido.
+		$this->put( 'a', 'uploads/2024/06/cambiada.jpg', 'BBBB' ); // Same size, different content.
 		$this->put( 'a', 'uploads/sobra.jpg', 'solo en a' );
 
 		$stats = $this->pull( $this->remote( array( 'allow_pull_files' => true ) ), 'uploads', true );
@@ -158,7 +158,7 @@ final class FileOpsTest extends TestCase {
 		$expected = $this->tree( "$this->tmp/b/uploads" );
 		unset( $expected['siteferry-xyz/backup.sql.gz'] );
 		$this->assertSame( $expected, $this->tree( "$this->tmp/a/uploads" ) );
-		$this->assertSame( 'BBBB', file_get_contents( "$this->tmp/a/storage/files-pull/backup/uploads/2024/06/cambiada.jpg" ), 'lo reemplazado queda en backup' );
+		$this->assertSame( 'BBBB', file_get_contents( "$this->tmp/a/storage/files-pull/backup/uploads/2024/06/cambiada.jpg" ), 'what was replaced ends up in the backup' );
 		$this->assertSame( 'solo en a', file_get_contents( "$this->tmp/a/storage/files-pull/backup/uploads/sobra.jpg" ) );
 	}
 
@@ -180,10 +180,10 @@ final class FileOpsTest extends TestCase {
 		$this->assertFileExists( "$this->tmp/b/plugins/mi-plugin/inc/nuevo.php" );
 		$this->assertFileDoesNotExist( "$this->tmp/b/plugins/mi-plugin/inc/viejo.php" );
 		$this->assertSame( '<?php // hola v2', file_get_contents( "$this->tmp/b/plugins/hello.php" ) );
-		$this->assertSame( '<?php // el de b', file_get_contents( "$this->tmp/b/plugins/siteferry/siteferry.php" ), 'nunca se reemplaza a sí mismo' );
+		$this->assertSame( '<?php // el de b', file_get_contents( "$this->tmp/b/plugins/siteferry/siteferry.php" ), 'never replaces itself' );
 		$this->assertSame( '<?php // v1', file_get_contents( "$this->tmp/b/storage/files-abcdef0123456789/backup/plugins/mi-plugin/mi-plugin.php" ) );
-		$this->assertSame( array(), glob( "$this->tmp/b/storage/files-abcdef0123456789/{stage,new}/plugins/*", GLOB_BRACE ), 'sin restos de trabajo' );
-		// "otro" no estaba en el origen: con delete se va a backup; sin delete se habría quedado.
+		$this->assertSame( array(), glob( "$this->tmp/b/storage/files-abcdef0123456789/{stage,new}/plugins/*", GLOB_BRACE ), 'no working leftovers' );
+		// "otro" was not on the source: with delete it goes to backup; without delete it would have stayed.
 		$this->assertFileDoesNotExist( "$this->tmp/b/plugins/otro/otro.php" );
 	}
 
@@ -193,20 +193,20 @@ final class FileOpsTest extends TestCase {
 		$remote = $this->remote( array( 'allow_push' => true ) );
 		try {
 			$this->push( $remote, 'themes', false );
-			$this->fail( 'Debió pedir el permiso de código.' );
+			$this->fail( 'Should have asked for the code permission.' );
 		} catch ( \RuntimeException $e ) {
-			$this->assertStringContainsString( 'push de código', $e->getMessage() );
+			$this->assertStringContainsString( 'code push', $e->getMessage() );
 		}
-		$this->assertSame( array(), $this->push( $remote, 'uploads', false )['failed'], 'media sí se puede' );
+		$this->assertSame( array(), $this->push( $remote, 'uploads', false )['failed'], 'media is allowed' );
 		$this->assertFileExists( "$this->tmp/b/uploads/foto.jpg" );
 
 		$closed = $this->remote( array() );
 		foreach ( array( 'files_scan', 'files_get', 'files_put' ) as $op ) {
 			try {
 				$closed( $op, array( 'root' => 'uploads', 'session' => 'abcdef0123456789' ), '' );
-				$this->fail( 'Debió rechazar ' . $op );
+				$this->fail( 'Should have rejected ' . $op );
 			} catch ( \RuntimeException $e ) {
-				$this->assertStringContainsString( 'no permite', $e->getMessage() );
+				$this->assertStringContainsString( 'does not allow', $e->getMessage() );
 			}
 		}
 	}
@@ -252,7 +252,7 @@ final class FileOpsTest extends TestCase {
 		$evil = '<?php // reemplazado';
 		$pkg  = 'SFYPKG1 ' . json_encode( array( 'files' => array( array( 'path' => 'siteferry/siteferry.php', 'offset' => 0, 'length' => strlen( $evil ), 'size' => strlen( $evil ), 'md5' => md5( $evil ) ) ) ) ) . "\n" . $evil;
 		$got  = $remote( 'files_put', array( 'root' => 'plugins', 'session' => 'abcdef0123456789' ), $pkg );
-		$this->assertSame( array( 'siteferry/siteferry.php' => 'ruta excluida' ), $got['failed'] );
+		$this->assertSame( array( 'siteferry/siteferry.php' => 'path excluded' ), $got['failed'] );
 		$remote( 'files_finalize', array( 'root' => 'plugins', 'session' => 'abcdef0123456789', 'deletions' => FileOps::pack( array( 'siteferry/siteferry.php' ) ) ) );
 		$this->assertSame( '<?php // original', file_get_contents( "$this->tmp/b/plugins/siteferry/siteferry.php" ) );
 	}
@@ -271,21 +271,21 @@ final class FileOpsTest extends TestCase {
 	}
 
 	public function test_reading_files_needs_its_own_permission(): void {
-		$remote = $this->remote( array( 'allow_pull' => true ) ); // Solo base de datos.
+		$remote = $this->remote( array( 'allow_pull' => true ) ); // Database only.
 		foreach ( array( 'files_scan', 'files_get' ) as $op ) {
 			try {
 				$remote( $op, array( 'root' => 'uploads' ) );
-				$this->fail( 'Debió rechazar ' . $op );
+				$this->fail( 'Should have rejected ' . $op );
 			} catch ( \RuntimeException $e ) {
-				$this->assertStringContainsString( 'pull de archivos', $e->getMessage() );
+				$this->assertStringContainsString( 'file pull', $e->getMessage() );
 			}
 		}
 	}
 
 	public function test_compression_bombs_are_refused(): void {
-		$bomb = base64_encode( gzcompress( '[' . str_repeat( '"aaaaaaaaaaaaaaaaaaaa",', 1000000 ) . '"a"]', 9 ) ); // ~22 MB al descomprimir.
+		$bomb = base64_encode( gzcompress( '[' . str_repeat( '"aaaaaaaaaaaaaaaaaaaa",', 1000000 ) . '"a"]', 9 ) ); // ~22 MB when decompressed.
 		$this->assertLessThan( 200 * 1024, strlen( $bomb ) );
-		$this->expectExceptionMessage( 'demasiado grande' );
+		$this->expectExceptionMessage( 'too large' );
 		FileOps::unpack( $bomb );
 	}
 
@@ -305,9 +305,9 @@ final class FileOpsTest extends TestCase {
 		foreach ( array( array( 'root' => 'uploads', 'session' => '../../x' ), array( 'root' => 'wp-admin', 'session' => 'abcdef0123456789' ) ) as $args ) {
 			try {
 				$remote( 'files_put', $args, $evil );
-				$this->fail( 'Debió rechazar ' . json_encode( $args ) );
+				$this->fail( 'Should have rejected ' . json_encode( $args ) );
 			} catch ( \RuntimeException $e ) {
-				$this->assertMatchesRegularExpression( '/inválida|no disponible/', $e->getMessage() );
+				$this->assertMatchesRegularExpression( '/Invalid|not available/', $e->getMessage() );
 			}
 		}
 	}

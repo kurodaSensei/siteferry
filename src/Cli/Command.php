@@ -1,6 +1,6 @@
 <?php
 /**
- * Comandos WP-CLI.
+ * WP-CLI commands.
  *
  * @package Siteferry
  */
@@ -14,52 +14,52 @@ use Siteferry\Support\Settings;
 use Siteferry\Support\UndoPoint;
 
 /**
- * Exporta, importa y reemplaza en la base de datos con Siteferry.
+ * Export, import and search-replace the database with Siteferry.
  */
 final class Command {
 
 	/**
-	 * Exporta la base de datos a un .sql.gz, con reemplazos opcionales.
+	 * Exports the database to a .sql.gz, with optional replacements.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [<pair>...]
-	 * : Pares buscar/reemplazar: `viejo nuevo [viejo2 nuevo2]`.
+	 * : Search/replace pairs: `old new [old2 new2]`.
 	 *
 	 * [--tables=<tables>]
-	 * : Tablas separadas por coma (por defecto, todas las del prefijo).
+	 * : Comma-separated tables (default: all tables with the prefix).
 	 *
 	 * [--output=<file>]
-	 * : Copiar el resultado a esta ruta.
+	 * : Copy the result to this path.
 	 *
 	 * [--media]
-	 * : Incluir uploads: el resultado es un paquete de sitio .sfy (BD + archivos).
+	 * : Include uploads: the result is a .sfy site package (database + files).
 	 *
 	 * [--themes]
-	 * : Incluir temas en el paquete .sfy.
+	 * : Include themes in the .sfy package.
 	 *
 	 * [--plugins]
-	 * : Incluir plugins en el paquete .sfy.
+	 * : Include plugins in the .sfy package.
 	 *
 	 * [--mu-plugins]
-	 * : Incluir mu-plugins en el paquete .sfy.
+	 * : Include mu-plugins in the .sfy package.
 	 *
 	 * [--regex]
-	 * : Los textos a buscar son expresiones regulares PCRE con delimitadores.
+	 * : The search strings are PCRE regular expressions with delimiters.
 	 *
 	 * [--case-sensitive]
-	 * : Distinguir mayúsculas.
+	 * : Case-sensitive matching.
 	 *
 	 * [--guids]
-	 * : Reemplazar también en la columna guid.
+	 * : Also replace in the guid column.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp siteferry export https://sitio.com http://sitio.test --output=sitio.sql.gz
-	 *     wp siteferry export --media --themes --plugins --output=sitio.sfy
+	 *     wp siteferry export https://example.com http://example.test --output=site.sql.gz
+	 *     wp siteferry export --media --themes --plugins --output=site.sfy
 	 *
-	 * @param array $args  Posicionales.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
 	 */
 	public function export( array $args, array $assoc ): void {
 		$job  = $this->run( 'export', array( 'files' => $this->roots( $assoc ) ) + $this->input( $args, $assoc ) );
@@ -68,243 +68,243 @@ final class Command {
 			copy( $file, $assoc['output'] );
 			$file = $assoc['output'];
 		}
-		\WP_CLI::success( sprintf( 'Exportado: %s (%s filas)', $file, number_format( $job['rows'] ) ) );
+		\WP_CLI::success( sprintf( 'Exported: %s (%s rows)', $file, number_format( $job['rows'] ) ) );
 	}
 
 	/**
-	 * Busca y reemplaza en la base de datos (seguro para datos serializados).
+	 * Searches and replaces in the database (safe for serialized data).
 	 *
 	 * ## OPTIONS
 	 *
 	 * <pair>...
-	 * : Pares buscar/reemplazar: `viejo nuevo [viejo2 nuevo2]`.
+	 * : Search/replace pairs: `old new [old2 new2]`.
 	 *
 	 * [--tables=<tables>]
-	 * : Tablas separadas por coma (por defecto, todas las del prefijo).
+	 * : Comma-separated tables (default: all tables with the prefix).
 	 *
 	 * [--backup]
-	 * : Crear un backup antes (por defecto). Usa --no-backup para omitirlo.
+	 * : Create a backup first (default). Use --no-backup to skip it.
 	 *
 	 * [--regex]
-	 * : Los textos a buscar son expresiones regulares PCRE con delimitadores.
+	 * : The search strings are PCRE regular expressions with delimiters.
 	 *
 	 * [--case-sensitive]
-	 * : Distinguir mayúsculas.
+	 * : Case-sensitive matching.
 	 *
 	 * [--guids]
-	 * : Reemplazar también en la columna guid.
+	 * : Also replace in the guid column.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp siteferry replace https://sitio.com http://sitio.test
+	 *     wp siteferry replace https://example.com http://example.test
 	 *
-	 * @param array $args  Posicionales.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
 	 */
 	public function replace( array $args, array $assoc ): void {
 		$job = $this->run( 'replace', $this->input( $args, $assoc ) );
-		\WP_CLI::success( sprintf( 'Reemplazo terminado (%s filas).', number_format( $job['rows'] ) ) );
+		\WP_CLI::success( sprintf( 'Search-replace finished (%s rows).', number_format( $job['rows'] ) ) );
 		$this->backup_notice( $job );
 	}
 
 	/**
-	 * Importa un .sql o .sql.gz (mysqldump, phpMyAdmin o Siteferry).
+	 * Imports a .sql or .sql.gz file (mysqldump, phpMyAdmin or Siteferry).
 	 *
 	 * ## OPTIONS
 	 *
 	 * <file>
-	 * : Archivo a importar.
+	 * : File to import.
 	 *
 	 * [<pair>...]
-	 * : Pares buscar/reemplazar adicionales.
+	 * : Additional search/replace pairs.
 	 *
 	 * [--backup]
-	 * : Crear un backup antes (por defecto). Usa --no-backup para omitirlo.
+	 * : Create a backup first (default). Use --no-backup to skip it.
 	 *
 	 * [--source-prefix=<prefix>]
-	 * : Prefijo de tablas a importar si el archivo trae varias instalaciones de WordPress.
+	 * : Table prefix to import when the file holds several WordPress installs.
 	 *
 	 * [--auto-url]
-	 * : Reemplazar la URL del sitio de origen por la de este sitio (por defecto). Usa --no-auto-url para omitirlo.
+	 * : Replace the source site URL with this site's URL (default). Use --no-auto-url to skip it.
 	 *
 	 * [--regex]
-	 * : Los textos a buscar son expresiones regulares PCRE con delimitadores.
+	 * : The search strings are PCRE regular expressions with delimiters.
 	 *
 	 * [--case-sensitive]
-	 * : Distinguir mayúsculas.
+	 * : Case-sensitive matching.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp siteferry import produccion.sql.gz
+	 *     wp siteferry import production.sql.gz
 	 *
-	 * @param array $args  Posicionales.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
 	 */
 	public function import( array $args, array $assoc ): void {
 		$file = (string) array_shift( $args );
 		if ( ! is_readable( $file ) ) {
-			\WP_CLI::error( 'No se puede leer ' . $file );
+			\WP_CLI::error( 'Cannot read ' . $file );
 		}
 		$input         = $this->input( $args, $assoc );
 		$input['file'] = (string) realpath( $file );
 		$job           = $this->run( 'import', $input );
-		\WP_CLI::success( sprintf( 'Importado (%s filas).', number_format( $job['rows'] ) ) );
+		\WP_CLI::success( sprintf( 'Imported (%s rows).', number_format( $job['rows'] ) ) );
 		$this->backup_notice( $job );
 	}
 
 	/**
-	 * Trae la base de datos de otro sitio y reemplaza la de este (pull).
+	 * Brings another site's database here and replaces this one (pull).
 	 *
 	 * ## OPTIONS
 	 *
 	 * <url>
-	 * : URL del otro sitio.
+	 * : URL of the other site.
 	 *
 	 * <key>
-	 * : Clave de conexión del otro sitio (`wp siteferry connection` allí).
+	 * : Connection key of the other site (`wp siteferry connection` there).
 	 *
 	 * [<pair>...]
-	 * : Pares buscar/reemplazar adicionales.
+	 * : Additional search/replace pairs.
 	 *
 	 * [--tables=<tables>]
-	 * : Tablas del otro sitio separadas por coma (por defecto, todas las de su prefijo).
+	 * : Comma-separated tables of the other site (default: all tables with its prefix).
 	 *
 	 * [--backup]
-	 * : Backup de este sitio antes (por defecto). Usa --no-backup para omitirlo.
+	 * : Back up this site first (default). Use --no-backup to skip it.
 	 *
 	 * [--auto-url]
-	 * : Cambiar la URL del otro sitio por la de este (por defecto). Usa --no-auto-url para omitirlo.
+	 * : Replace the other site's URL with this one's (default). Use --no-auto-url to skip it.
 	 *
 	 * [--media]
-	 * : Transferir también la media (uploads).
+	 * : Also transfer media (uploads).
 	 *
 	 * [--themes]
-	 * : Transferir también los temas.
+	 * : Also transfer themes.
 	 *
 	 * [--plugins]
-	 * : Transferir también los plugins.
+	 * : Also transfer plugins.
 	 *
 	 * [--mu-plugins]
-	 * : Transferir también los plugins obligatorios (mu-plugins).
+	 * : Also transfer must-use plugins (mu-plugins).
 	 *
 	 * [--delete]
-	 * : Borrar en el destino los archivos que no existen en el origen (van a un backup 7 días).
+	 * : Delete destination files that don't exist on the source (kept in a backup for 7 days).
 	 *
 	 * [--files-only]
-	 * : Solo archivos, sin base de datos.
+	 * : Files only, no database.
 	 *
 	 * [--regex]
-	 * : Los textos a buscar son expresiones regulares PCRE con delimitadores.
+	 * : The search strings are PCRE regular expressions with delimiters.
 	 *
 	 * [--case-sensitive]
-	 * : Distinguir mayúsculas.
+	 * : Case-sensitive matching.
 	 *
 	 * [--guids]
-	 * : Reemplazar también en la columna guid.
+	 * : Also replace in the guid column.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp siteferry pull https://produccion.com abc123...
-	 *     wp siteferry pull https://produccion.com abc123... --media --files-only
+	 *     wp siteferry pull https://production.example abc123...
+	 *     wp siteferry pull https://production.example abc123... --media --files-only
 	 *
-	 * @param array $args  Posicionales.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
 	 */
 	public function pull( array $args, array $assoc ): void {
 		$this->remote( 'pull', $args, $assoc );
 	}
 
 	/**
-	 * Envía la base de datos de este sitio a otro y reemplaza la de allá (push).
+	 * Sends this site's database to another site and replaces the one there (push).
 	 *
 	 * ## OPTIONS
 	 *
 	 * <url>
-	 * : URL del otro sitio.
+	 * : URL of the other site.
 	 *
 	 * <key>
-	 * : Clave de conexión del otro sitio (`wp siteferry connection` allí).
+	 * : Connection key of the other site (`wp siteferry connection` there).
 	 *
 	 * [<pair>...]
-	 * : Pares buscar/reemplazar adicionales.
+	 * : Additional search/replace pairs.
 	 *
 	 * [--tables=<tables>]
-	 * : Tablas de este sitio separadas por coma (por defecto, todas las del prefijo).
+	 * : Comma-separated tables of this site (default: all tables with the prefix).
 	 *
 	 * [--backup]
-	 * : Backup del otro sitio antes, guardado allá (por defecto). Usa --no-backup para omitirlo.
+	 * : Back up the other site first, stored there (default). Use --no-backup to skip it.
 	 *
 	 * [--auto-url]
-	 * : Cambiar la URL de este sitio por la del otro (por defecto). Usa --no-auto-url para omitirlo.
+	 * : Replace this site's URL with the other one's (default). Use --no-auto-url to skip it.
 	 *
 	 * [--media]
-	 * : Transferir también la media (uploads).
+	 * : Also transfer media (uploads).
 	 *
 	 * [--themes]
-	 * : Transferir también los temas.
+	 * : Also transfer themes.
 	 *
 	 * [--plugins]
-	 * : Transferir también los plugins.
+	 * : Also transfer plugins.
 	 *
 	 * [--mu-plugins]
-	 * : Transferir también los plugins obligatorios (mu-plugins).
+	 * : Also transfer must-use plugins (mu-plugins).
 	 *
 	 * [--delete]
-	 * : Borrar en el destino los archivos que no existen en el origen (van a un backup 7 días).
+	 * : Delete destination files that don't exist on the source (kept in a backup for 7 days).
 	 *
 	 * [--files-only]
-	 * : Solo archivos, sin base de datos.
+	 * : Files only, no database.
 	 *
 	 * [--regex]
-	 * : Los textos a buscar son expresiones regulares PCRE con delimitadores.
+	 * : The search strings are PCRE regular expressions with delimiters.
 	 *
 	 * [--case-sensitive]
-	 * : Distinguir mayúsculas.
+	 * : Case-sensitive matching.
 	 *
 	 * [--guids]
-	 * : Reemplazar también en la columna guid.
+	 * : Also replace in the guid column.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp siteferry push https://staging.sitio.com abc123...
-	 *     wp siteferry push https://staging.sitio.com abc123... --themes --plugins --files-only
+	 *     wp siteferry push https://staging.example.com abc123...
+	 *     wp siteferry push https://staging.example.com abc123... --themes --plugins --files-only
 	 *
-	 * @param array $args  Posicionales.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
 	 */
 	public function push( array $args, array $assoc ): void {
 		$this->remote( 'push', $args, $assoc );
 	}
 
 	/**
-	 * Muestra la información de conexión de este sitio y ajusta qué pueden hacer otros sitios.
+	 * Shows this site's connection info and sets what other sites may do.
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--allow-pull=<on|off>]
-	 * : Permitir que otros sitios lean esta base de datos.
+	 * : Allow other sites to read this database.
 	 *
 	 * [--allow-pull-files=<on|off>]
-	 * : Permitir que otros sitios lean media, temas y plugins (incluido su código).
+	 * : Allow other sites to read media, themes and plugins (including their code).
 	 *
 	 * [--allow-push=<on|off>]
-	 * : Permitir que otros sitios reemplacen esta base de datos.
+	 * : Allow other sites to replace this database.
 	 *
 	 * [--allow-push-code=<on|off>]
-	 * : Permitir que otros sitios reemplacen temas y plugins (código) en un push.
+	 * : Allow other sites to replace themes and plugins (code) in a push.
 	 *
 	 * [--verify-ssl=<on|off>]
-	 * : Verificar el certificado HTTPS al conectarse a otros sitios.
+	 * : Verify the HTTPS certificate when connecting to other sites.
 	 *
 	 * [--regenerate-key]
-	 * : Crear una clave nueva (los sitios con la anterior dejan de conectarse).
+	 * : Create a new key (sites using the old one can no longer connect).
 	 *
 	 * ## EXAMPLES
 	 *
 	 *     wp siteferry connection --allow-pull=on
 	 *
-	 * @param array $args  Posicionales.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
 	 */
 	public function connection( array $args, array $assoc ): void {
 		$values = array();
@@ -317,16 +317,16 @@ final class Command {
 		if ( isset( $assoc['regenerate-key'] ) ) {
 			Settings::regenerate();
 		}
-		\WP_CLI::log( 'Pull: ' . ( $settings['allow_pull'] ? 'permitido' : 'no' ) . ' · Pull de archivos: ' . ( $settings['allow_pull_files'] ? 'permitido' : 'no' ) . ' · Push: ' . ( $settings['allow_push'] ? 'permitido' : 'no' ) . ' · Push de código: ' . ( $settings['allow_push_code'] ? 'permitido' : 'no' ) . ' · Verificar SSL: ' . ( $settings['verify_ssl'] ? 'sí' : 'no' ) );
-		\WP_CLI::log( "Información de conexión:\n" . Settings::connection() );
+		\WP_CLI::log( 'Pull: ' . ( $settings['allow_pull'] ? 'allowed' : 'no' ) . ' · File pull: ' . ( $settings['allow_pull_files'] ? 'allowed' : 'no' ) . ' · Push: ' . ( $settings['allow_push'] ? 'allowed' : 'no' ) . ' · Code push: ' . ( $settings['allow_push_code'] ? 'allowed' : 'no' ) . ' · Verify SSL: ' . ( $settings['verify_ssl'] ? 'yes' : 'no' ) );
+		\WP_CLI::log( "Connection info:\n" . Settings::connection() );
 	}
 
 	/**
-	 * Pull o push.
+	 * Pull or push.
 	 *
 	 * @param string $intent pull | push.
-	 * @param array  $args   url, key y pares.
-	 * @param array  $assoc  Opciones.
+	 * @param array  $args   url, key and pairs.
+	 * @param array  $assoc  Options.
 	 */
 	private function remote( string $intent, array $args, array $assoc ): void {
 		$url                   = (string) array_shift( $args );
@@ -339,7 +339,7 @@ final class Command {
 		$job                   = $this->run( $intent, $input );
 		\WP_CLI::success(
 			sprintf(
-				'%s terminado (%s filas, %s archivos).',
+				'%s finished (%s rows, %s files).',
 				'pull' === $intent ? 'Pull' : 'Push',
 				number_format( $job['rows'] ),
 				number_format( array_sum( array_column( $job['file_stats'], 'sent' ) ) )
@@ -349,30 +349,30 @@ final class Command {
 	}
 
 	/**
-	 * Deshace la última operación que modificó este sitio (reemplazo, importación, pull o push recibido).
+	 * Undoes the last operation that changed this site (search-replace, import, pull or received push).
 	 *
 	 * ## OPTIONS
 	 *
 	 * [--yes]
-	 * : No pedir confirmación.
+	 * : Skip the confirmation prompt.
 	 *
-	 * @param array $args  Posicionales.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Positional arguments.
+	 * @param array $assoc Options.
 	 */
 	public function undo( array $args, array $assoc ): void {
 		$point = UndoPoint::get();
 		if ( ! $point ) {
-			\WP_CLI::error( 'No hay nada que deshacer.' );
+			\WP_CLI::error( 'There is nothing to undo.' );
 		}
-		\WP_CLI::confirm( sprintf( 'Deshacer "%s" del %s? Lo cambiado después se pierde.', $point['label'], wp_date( 'Y-m-d H:i', (int) $point['time'] ) ), $assoc );
+		\WP_CLI::confirm( sprintf( 'Undo "%s" from %s? Anything changed since then is lost.', $point['label'], wp_date( 'Y-m-d H:i', (int) $point['time'] ) ), $assoc );
 		$this->run( 'undo', array() );
-		\WP_CLI::success( 'Deshecho.' );
+		\WP_CLI::success( 'Undone.' );
 	}
 
 	/**
-	 * Carpetas pedidas con --media, --themes, --plugins y --mu-plugins.
+	 * Folders requested with --media, --themes, --plugins and --mu-plugins.
 	 *
-	 * @param array $assoc Opciones.
+	 * @param array $assoc Options.
 	 * @return string[]
 	 */
 	private function roots( array $assoc ): array {
@@ -386,14 +386,14 @@ final class Command {
 	}
 
 	/**
-	 * Opciones comunes.
+	 * Common options.
 	 *
-	 * @param array $args  Pares.
-	 * @param array $assoc Opciones.
+	 * @param array $args  Pairs.
+	 * @param array $assoc Options.
 	 */
 	private function input( array $args, array $assoc ): array {
 		if ( count( $args ) % 2 ) {
-			\WP_CLI::error( 'Los pares buscar/reemplazar van de dos en dos.' );
+			\WP_CLI::error( 'Search/replace pairs must come in twos.' );
 		}
 		return array(
 			'pairs'          => array_chunk( $args, 2 ),
@@ -408,10 +408,10 @@ final class Command {
 	}
 
 	/**
-	 * Crea el job y lo corre hasta el final con una barra de progreso.
+	 * Creates the job and runs it to the end with a progress bar.
 	 *
-	 * @param string $intent Acción.
-	 * @param array  $input  Opciones.
+	 * @param string $intent Action.
+	 * @param array  $input  Options.
 	 */
 	private function run( string $intent, array $input ): array {
 		try {
@@ -432,7 +432,7 @@ final class Command {
 			\WP_CLI::warning( $warning );
 		}
 		if ( 'done' !== $job['status'] ) {
-			// Sin interfaz para "Cancelar": se limpia ya (tablas temporales y, en un push, el sitio remoto).
+			// No UI with a "Cancel" button here: clean up now (temporary tables and, for a push, the remote site).
 			JobStore::save( Plugin::runner()->cancel( $job ) );
 			\WP_CLI::error( (string) $job['error'] );
 		}
@@ -440,13 +440,13 @@ final class Command {
 	}
 
 	/**
-	 * Dónde quedó el backup.
+	 * Where the backup was stored.
 	 *
 	 * @param array $job Job.
 	 */
 	private function backup_notice( array $job ): void {
 		if ( isset( $job['files']['backup'] ) ) {
-			\WP_CLI::log( 'Backup previo: ' . $job['files']['backup'] );
+			\WP_CLI::log( 'Backup taken before: ' . $job['files']['backup'] );
 		}
 	}
 }

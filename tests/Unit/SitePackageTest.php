@@ -1,6 +1,6 @@
 <?php
 /**
- * Pruebas del formato de paquete de sitio (.sfy).
+ * Tests for the site package format (.sfy).
  *
  * @package Siteferry
  */
@@ -44,7 +44,7 @@ final class SitePackageTest extends TestCase {
 		$handle = fopen( $this->file, 'r+b' );
 		ftruncate( $handle, filesize( $this->file ) - 1 );
 		fclose( $handle );
-		$this->expectExceptionMessage( 'cortado' );
+		$this->expectExceptionMessage( 'truncated' );
 		SitePackage::read( $this->file, 0 );
 	}
 
@@ -52,12 +52,12 @@ final class SitePackageTest extends TestCase {
 		file_put_contents( $this->file, "-- MySQL dump\n" );
 		try {
 			SitePackage::meta( $this->file );
-			$this->fail( 'Un .sql renombrado no es un paquete.' );
+			$this->fail( 'A renamed .sql is not a package.' );
 		} catch ( \RuntimeException $e ) {
-			$this->assertStringContainsString( 'no es un paquete', strtolower( $e->getMessage() ) );
+			$this->assertStringContainsString( 'not a valid siteferry package', strtolower( $e->getMessage() ) );
 		}
 		file_put_contents( $this->file, "SFYSITE1 {}\n" . '{"type":"files","root":"../../etc","length":0}' . "\n" );
-		$this->expectExceptionMessage( 'inválido' );
+		$this->expectExceptionMessage( 'Invalid package block' );
 		SitePackage::read( $this->file, 0 );
 	}
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Lee sentencias de un archivo .sql.
+ * Reads statements from a .sql file.
  *
  * @package Siteferry
  */
@@ -8,29 +8,29 @@
 namespace Siteferry\Engine;
 
 /**
- * Lector por líneas para dumps de mysqldump, phpMyAdmin y de este plugin: una sentencia
- * termina en una línea que acaba en ";". Funciona porque esas herramientas escapan los
- * saltos de línea dentro de los valores.
+ * Line-based reader for dumps from mysqldump, phpMyAdmin and this plugin: a statement
+ * ends at a line that ends in ";". It works because those tools escape the
+ * line breaks inside values.
  */
 final class SqlFileReader {
 
 	/**
-	 * Lee sentencias completas desde $offset hasta acabar el archivo o el presupuesto.
-	 * El offset devuelto siempre apunta al inicio de una sentencia, así que una sentencia
-	 * a medias se vuelve a leer completa en la siguiente llamada.
+	 * Reads complete statements from $offset until the file or the budget runs out.
+	 * The returned offset always points to the start of a statement, so a half-read
+	 * statement is read again in full on the next call.
 	 *
-	 * @param string   $path         Archivo .sql sin comprimir.
-	 * @param int      $offset       Byte donde seguir.
-	 * @param Budget   $budget       Tiempo disponible.
-	 * @param callable $on_statement Recibe cada sentencia sin el ";" final.
+	 * @param string   $path         Uncompressed .sql file.
+	 * @param int      $offset       Byte to continue from.
+	 * @param Budget   $budget       Available time.
+	 * @param callable $on_statement Receives each statement without the trailing ";".
 	 * @return array{offset: int, done: bool, skipped: int}
 	 *
-	 * @throws \RuntimeException Si no se puede abrir.
+	 * @throws \RuntimeException If it cannot be opened.
 	 */
 	public static function read( string $path, int $offset, Budget $budget, callable $on_statement ): array {
 		$handle = fopen( $path, 'rb' );
 		if ( ! $handle ) {
-			throw new \RuntimeException( 'No se puede leer ' . $path );
+			throw new \RuntimeException( 'Cannot read ' . $path );
 		}
 		fseek( $handle, $offset );
 
@@ -51,7 +51,7 @@ final class SqlFileReader {
 					$offset = ftell( $handle );
 					continue;
 				}
-				// ponytail: los bloques DELIMITER (triggers, procedimientos) se omiten.
+				// ponytail: DELIMITER blocks (triggers, procedures) are skipped.
 				if ( preg_match( '/^DELIMITER\s/i', $trimmed ) ) {
 					$delimiter = true;
 					++$skipped;
@@ -71,7 +71,7 @@ final class SqlFileReader {
 			}
 		}
 		if ( $done && '' !== trim( $buffer ) ) {
-			$on_statement( rtrim( trim( $buffer ), ';' ) ); // Última sentencia sin ";".
+			$on_statement( rtrim( trim( $buffer ), ';' ) ); // Last statement without a ";".
 			$offset = ftell( $handle );
 		}
 		fclose( $handle );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Acceso directo a MySQL.
+ * Direct MySQL access.
  *
  * @package Siteferry
  */
@@ -8,32 +8,32 @@
 namespace Siteferry\Support;
 
 /**
- * Envoltura mínima sobre mysqli. En WordPress usa la misma conexión que $wpdb.
+ * Thin wrapper around mysqli. In WordPress it uses the same connection as $wpdb.
  */
 final class Db {
 
 	/**
 	 * Constructor.
 	 *
-	 * @param \mysqli $link Conexión abierta.
+	 * @param \mysqli $link Open connection.
 	 */
 	public function __construct( private \mysqli $link ) {}
 
 	/**
-	 * Usa la conexión de WordPress.
+	 * Uses the WordPress connection.
 	 *
-	 * @param \wpdb $wpdb Instancia global.
+	 * @param \wpdb $wpdb Global instance.
 	 */
 	public static function from_wpdb( \wpdb $wpdb ): self {
 		return new self( $wpdb->dbh );
 	}
 
 	/**
-	 * Ejecuta una sentencia.
+	 * Runs a statement.
 	 *
 	 * @param string $sql SQL.
 	 *
-	 * @throws \RuntimeException Si MySQL devuelve error.
+	 * @throws \RuntimeException If MySQL returns an error.
 	 */
 	public function query( string $sql ): \mysqli_result|bool {
 		$result = $this->link->query( $sql );
@@ -44,7 +44,7 @@ final class Db {
 	}
 
 	/**
-	 * Filas como arrays asociativos.
+	 * Rows as associative arrays.
 	 *
 	 * @param string $sql SQL.
 	 * @return list<array<string, ?string>>
@@ -57,7 +57,7 @@ final class Db {
 	}
 
 	/**
-	 * Primera columna de la primera fila.
+	 * First column of the first row.
 	 *
 	 * @param string $sql SQL.
 	 */
@@ -69,28 +69,28 @@ final class Db {
 	}
 
 	/**
-	 * Literal de texto escapado. Los saltos de línea quedan como \n, así que un valor
-	 * nunca ocupa más de una línea en el dump.
+	 * Escaped string literal. Newlines stay as \n, so a value
+	 * never spans more than one line in the dump.
 	 *
-	 * @param string $value Valor.
+	 * @param string $value Value.
 	 */
 	public function quote( string $value ): string {
 		return "'" . $this->link->real_escape_string( $value ) . "'";
 	}
 
 	/**
-	 * Identificador entre backticks.
+	 * Identifier wrapped in backticks.
 	 *
-	 * @param string $name Tabla o columna.
+	 * @param string $name Table or column.
 	 */
 	public static function ident( string $name ): string {
 		return '`' . str_replace( '`', '``', $name ) . '`';
 	}
 
 	/**
-	 * Ejecuta $work con la sesión preparada para migrar y la deja como estaba.
+	 * Runs $work with the session set up for migration, then restores it.
 	 *
-	 * @param callable $work Trabajo.
+	 * @param callable $work Work to run.
 	 */
 	public function in_migration_session( callable $work ): mixed {
 		$charset = $this->link->character_set_name();
@@ -98,7 +98,7 @@ final class Db {
 		$fk      = (int) $this->value( 'SELECT @@SESSION.foreign_key_checks' );
 
 		$this->link->set_charset( 'utf8mb4' );
-		// Sin NO_AUTO_VALUE_ON_ZERO, una fila con ID 0 se renumera al insertarla.
+		// Without NO_AUTO_VALUE_ON_ZERO, a row with ID 0 is renumbered on insert.
 		$this->query( "SET SESSION sql_mode = 'NO_AUTO_VALUE_ON_ZERO', SESSION foreign_key_checks = 0" );
 		try {
 			return $work();

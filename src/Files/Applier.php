@@ -1,6 +1,6 @@
 <?php
 /**
- * Aplica en el destino lo recibido.
+ * Applies what was received on the destination.
  *
  * @package Siteferry
  */
@@ -8,57 +8,58 @@
 namespace Siteferry\Files;
 
 /**
- * Coloca los archivos recibidos en una sesión de transferencia.
+ * Places the files received in a transfer session.
  *
- * - Media: archivo por archivo; el anterior (si existía) se mueve a backup/ antes.
- * - Código (temas, plugins, mu-plugins): todo va a stage/; al finalizar, cada carpeta de primer
- *   nivel tocada se arma completa en new/ (copia de la actual + lo recibido − lo borrado) y se
- *   cambia de una vez, guardando la anterior en backup/. Un plugin nunca queda a medio copiar.
+ * - Media: file by file; the previous file (if any) is moved to backup/ first.
+ * - Code (themes, plugins, mu-plugins): everything goes to stage/; on finish, each top-level
+ *   folder touched is built in full in new/ (copy of the current one + what was received − what
+ *   was deleted) and swapped in at once, keeping the previous one in backup/. A plugin is never
+ *   left half-copied.
  *
- * La sesión vive en $work: stage/, new/ y backup/ (este se conserva para poder deshacer).
+ * The session lives in $work: stage/, new/ and backup/ (backup/ is kept so the operation can be undone).
  */
 final class Applier {
 
 	/**
 	 * Constructor.
 	 *
-	 * @param array<string, string> $roots Raíz => carpeta absoluta.
-	 * @param string                $work  Carpeta de la sesión.
+	 * @param array<string, string> $roots Root => absolute folder.
+	 * @param string                $work  Session folder.
 	 */
 	public function __construct( private array $roots, private string $work ) {}
 
 	/**
-	 * Rutas de media colocadas en esta sesión ("raíz/ruta" => true), leídas una vez por instancia.
+	 * Media paths placed in this session ("root/path" => true), read once per instance.
 	 *
 	 * @var array<string, true>|null
 	 */
 	private ?array $placed = null;
 
 	/**
-	 * Guard de una raíz viva.
+	 * Guard for a live root.
 	 *
-	 * @param string $root Raíz.
+	 * @param string $root Root.
 	 *
-	 * @throws \InvalidArgumentException Si la raíz no existe.
+	 * @throws \InvalidArgumentException If the root does not exist.
 	 */
 	public function live( string $root ): PathGuard {
 		if ( ! isset( $this->roots[ $root ] ) ) {
-			throw new \InvalidArgumentException( 'Carpeta desconocida: ' . $root );
+			throw new \InvalidArgumentException( 'Unknown folder: ' . $root );
 		}
 		return new PathGuard( $this->roots[ $root ] );
 	}
 
 	/**
-	 * Escribe un paquete recibido.
+	 * Writes a received package.
 	 *
-	 * @param string $root    Raíz.
-	 * @param string $package Paquete.
+	 * @param string $root    Root.
+	 * @param string $package Package.
 	 * @return array{done: list<string>, partial: list<string>, failed: array<string, string>}
 	 */
 	public function receive( string $root, string $package ): array {
 		$live    = $this->live( $root );
 		$exclude = Roots::exclude( $root );
-		$allow   = static fn( string $file ) => ! Roots::matches( $exclude, $file ); // P. ej. nunca siteferry/.
+		$allow   = static fn( string $file ) => ! Roots::matches( $exclude, $file ); // E.g. never siteferry/.
 		if ( Roots::is_code( $root ) ) {
 			return Package::extract( $package, new PathGuard( $this->dir( 'stage', $root ) ), false, null, $allow );
 		}
@@ -70,7 +71,7 @@ final class Applier {
 				$this->backup( $target, $root, $relative );
 				rename( $part, $target );
 				if ( ! $this->placed( $root, $relative ) ) {
-					$this->note( "placed-$root", $relative ); // Para deshacer: lo que llegó nuevo se quita.
+					$this->note( "placed-$root", $relative ); // For undo: whatever arrived as new gets removed.
 					$this->placed[ "$root/$relative" ] = true;
 				}
 			},
@@ -79,13 +80,13 @@ final class Applier {
 	}
 
 	/**
-	 * Termina la raíz: borra (a backup) lo indicado y, en código, cambia las carpetas tocadas.
+	 * Finishes the root: deletes (to backup) what is listed and, for code, swaps the folders touched.
 	 *
-	 * @param string           $root      Raíz.
-	 * @param iterable<string> $deletions Rutas relativas a borrar en el destino.
+	 * @param string           $root      Root.
+	 * @param iterable<string> $deletions Relative paths to delete on the destination.
 	 * @return array{replaced: int, deleted: int, skipped: list<string>}
 	 *
-	 * @throws \RuntimeException Si no se puede mover una carpeta.
+	 * @throws \RuntimeException If a folder cannot be moved.
 	 */
 	public function finalize( string $root, iterable $deletions ): array {
 		$live    = $this->live( $root );
@@ -95,7 +96,7 @@ final class Applier {
 			'deleted'  => 0,
 			'skipped'  => array(),
 		);
-		// Solo se borra lo que el escáner listaría: nunca .htaccess, configuración del servidor ni rutas excluidas.
+		// Only what the scanner would list is deleted: never .htaccess, server configuration or excluded paths.
 		$protected = static fn( string $relative ) => Roots::matches( $exclude, $relative ) || PathGuard::executable( $relative );
 		if ( ! Roots::is_code( $root ) ) {
 			foreach ( $deletions as $relative ) {
@@ -122,11 +123,11 @@ final class Applier {
 
 		foreach ( $tops as $top ) {
 			if ( Roots::matches( $exclude, (string) $top ) ) {
-				continue; // Siteferry y lo excluido nunca se reemplazan.
+				continue; // Siteferry and anything excluded are never replaced.
 			}
 			$target = $live->resolve( (string) $top );
 			if ( null === $target ) {
-				$stats['skipped'][] = (string) $top; // P. ej. un plugin que es un symlink en el destino.
+				$stats['skipped'][] = (string) $top; // E.g. a plugin that is a symlink on the destination.
 				continue;
 			}
 			$staged = $stage . '/' . $top;
@@ -138,7 +139,7 @@ final class Applier {
 				)
 			);
 			if ( is_file( $staged ) || ( ! is_dir( $staged ) && ! is_dir( $target ) ) ) {
-				// Archivo suelto en el primer nivel (mu-plugins/x.php, plugins/hello.php).
+				// Loose file at the top level (mu-plugins/x.php, plugins/hello.php).
 				if ( is_file( $target ) ) {
 					$this->backup( $target, $root, (string) $top );
 					++$stats[ is_file( $staged ) ? 'replaced' : 'deleted' ];
@@ -166,9 +167,9 @@ final class Applier {
 			if ( is_dir( $target ) ) {
 				$this->backup( $target, $root, (string) $top );
 			}
-			// ponytail: rename exige que la sesión y wp-content estén en el mismo sistema de archivos.
+			// ponytail: rename requires the session and wp-content to be on the same filesystem.
 			if ( ! rename( $new, $target ) ) {
-				throw new \RuntimeException( 'No se pudo colocar ' . $root . '/' . $top );
+				throw new \RuntimeException( 'Could not place ' . $root . '/' . $top );
 			}
 			++$stats['replaced'];
 		}
@@ -178,11 +179,11 @@ final class Applier {
 	}
 
 	/**
-	 * Archivos del destino que sobran dentro de las carpetas de primer nivel recibidas en stage/
-	 * (un paquete de sitio trae cada carpeta completa: lo que no vino ya no existe en el origen).
+	 * Destination files left over inside the top-level folders received in stage/
+	 * (a site package carries each folder in full: whatever did not come no longer exists on the source).
 	 *
-	 * @param string $root Raíz de código.
-	 * @return list<string> Rutas relativas.
+	 * @param string $root Code root.
+	 * @return list<string> Relative paths.
 	 */
 	public function leftovers( string $root ): array {
 		$stage = $this->work . '/stage/' . $root;
@@ -204,11 +205,11 @@ final class Applier {
 	}
 
 	/**
-	 * Deshace lo hecho en una raíz durante la sesión: lo que estaba vuelve desde backup/ y lo que
-	 * llegó nuevo se aparta a undone/ (no se borra). Se puede repetir: lo ya apartado o restaurado
-	 * no se vuelve a tocar.
+	 * Undoes what was done on a root during the session: what was there comes back from backup/ and what
+	 * arrived as new is moved aside to undone/ (not deleted). It can be repeated: anything already moved
+	 * aside or restored is not touched again.
 	 *
-	 * @param string $root Raíz.
+	 * @param string $root Root.
 	 * @return array{restored: int, removed: int}
 	 */
 	public function restore( string $root ): array {
@@ -221,7 +222,7 @@ final class Applier {
 			'removed'  => 0,
 		);
 		if ( Roots::is_code( $root ) ) {
-			// Una carpeta repetida (reintento de finalize) cuenta por su primera anotación: la de antes de la sesión.
+			// A repeated folder (finalize retry) counts by its first entry: the one from before the session.
 			$swaps = array();
 			foreach ( $this->notes( "swapped-$root" ) as $swap ) {
 				$swaps[ (string) ( $swap['top'] ?? '' ) ] ??= $swap;
@@ -274,10 +275,10 @@ final class Applier {
 	}
 
 	/**
-	 * Si un archivo de media ya llegó en esta sesión.
+	 * Whether a media file already arrived in this session.
 	 *
-	 * @param string $root     Raíz.
-	 * @param string $relative Ruta relativa.
+	 * @param string $root     Root.
+	 * @param string $relative Relative path.
 	 */
 	private function placed( string $root, string $relative ): bool {
 		if ( null === $this->placed ) {
@@ -292,10 +293,10 @@ final class Applier {
 	}
 
 	/**
-	 * Anota algo en un registro JSONL de la sesión.
+	 * Records something in a session JSONL log.
 	 *
-	 * @param string $name  Registro.
-	 * @param mixed  $entry Entrada.
+	 * @param string $name  Log.
+	 * @param mixed  $entry Entry.
 	 */
 	private function note( string $name, mixed $entry ): void {
 		if ( ! is_dir( $this->work ) ) {
@@ -305,9 +306,9 @@ final class Applier {
 	}
 
 	/**
-	 * Entradas de un registro de la sesión.
+	 * Entries of a session log.
 	 *
-	 * @param string $name Registro.
+	 * @param string $name Log.
 	 * @return list<mixed>
 	 */
 	private function notes( string $name ): array {
@@ -319,12 +320,12 @@ final class Applier {
 	}
 
 	/**
-	 * Mueve un archivo o carpeta creando lo necesario (y reemplazando lo que hubiera en el destino).
+	 * Moves a file or folder, creating whatever is needed (and replacing anything at the target).
 	 *
-	 * @param string $from Origen.
-	 * @param string $to   Destino.
+	 * @param string $from Source.
+	 * @param string $to   Target.
 	 *
-	 * @throws \RuntimeException Si no se puede.
+	 * @throws \RuntimeException If it cannot be moved.
 	 */
 	private function move( string $from, string $to ): void {
 		if ( ! is_dir( dirname( $to ) ) ) {
@@ -334,18 +335,18 @@ final class Applier {
 			self::remove_tree( $to );
 		}
 		if ( ! rename( $from, $to ) ) {
-			throw new \RuntimeException( 'No se pudo mover ' . $from );
+			throw new \RuntimeException( 'Could not move ' . $from );
 		}
 	}
 
 	/**
-	 * Mueve lo que había en el destino a backup/, conservando la ruta.
+	 * Moves what was on the destination to backup/, keeping the path.
 	 *
-	 * @param string $absolute Archivo o carpeta.
-	 * @param string $root     Raíz.
-	 * @param string $relative Ruta relativa.
+	 * @param string $absolute File or folder.
+	 * @param string $root     Root.
+	 * @param string $relative Relative path.
 	 *
-	 * @throws \RuntimeException Si no se puede mover.
+	 * @throws \RuntimeException If it cannot be moved.
 	 */
 	private function backup( string $absolute, string $root, string $relative ): void {
 		if ( ! file_exists( $absolute ) ) {
@@ -353,7 +354,7 @@ final class Applier {
 		}
 		$to = $this->work . '/backup/' . $root . '/' . $relative;
 		if ( file_exists( $to ) || ( ! Roots::is_code( $root ) && $this->placed( $root, $relative ) ) ) {
-			// Reintento: el backup (o su ausencia) es el estado de antes de la sesión y lo actual llegó en ella.
+			// Retry: the backup (or its absence) is the state from before the session and the current file arrived during it.
 			self::remove_tree( $absolute );
 			return;
 		}
@@ -362,15 +363,15 @@ final class Applier {
 			mkdir( dirname( $to ), 0755, true );
 		}
 		if ( ! rename( $absolute, $to ) ) {
-			throw new \RuntimeException( 'No se pudo respaldar ' . $root . '/' . $relative );
+			throw new \RuntimeException( 'Could not back up ' . $root . '/' . $relative );
 		}
 	}
 
 	/**
-	 * Carpeta de trabajo de la sesión (se crea si falta).
+	 * Session working folder (created if missing).
 	 *
 	 * @param string $kind stage | new.
-	 * @param string $root Raíz.
+	 * @param string $root Root.
 	 */
 	private function dir( string $kind, string $root ): string {
 		$dir = $this->work . '/' . $kind . '/' . $root;
@@ -384,10 +385,10 @@ final class Applier {
 	}
 
 	/**
-	 * Copia una carpeta (sin seguir symlinks).
+	 * Copies a folder (without following symlinks).
 	 *
-	 * @param string $from Origen.
-	 * @param string $to   Destino.
+	 * @param string $from Source.
+	 * @param string $to   Target.
 	 */
 	private static function copy_tree( string $from, string $to ): void {
 		if ( ! is_dir( $to ) ) {
@@ -410,10 +411,10 @@ final class Applier {
 	}
 
 	/**
-	 * Mueve los archivos de una carpeta sobre otra (sobrescribiendo).
+	 * Moves the files of one folder onto another (overwriting).
 	 *
-	 * @param string $from Origen.
-	 * @param string $to   Destino.
+	 * @param string $from Source.
+	 * @param string $to   Target.
 	 */
 	private static function move_tree( string $from, string $to ): void {
 		$items = new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $from, \FilesystemIterator::SKIP_DOTS ) );
@@ -430,9 +431,9 @@ final class Applier {
 	}
 
 	/**
-	 * Borra una carpeta o archivo (sin seguir symlinks).
+	 * Deletes a folder or file (without following symlinks).
 	 *
-	 * @param string $path Ruta.
+	 * @param string $path Path.
 	 */
 	public static function remove_tree( string $path ): void {
 		if ( is_link( $path ) || is_file( $path ) ) {

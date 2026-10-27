@@ -1,6 +1,6 @@
 <?php
 /**
- * Ejecuta las sentencias en la base de datos.
+ * Runs the statements against the database.
  *
  * @package Siteferry
  */
@@ -10,19 +10,19 @@ namespace Siteferry\Engine;
 use Siteferry\Support\Db;
 
 /**
- * Sink que ejecuta cada sentencia (para llenar tablas temporales).
+ * Sink that runs each statement (to fill temporary tables).
  */
 final class TableSink implements Sink {
 
 	/**
 	 * Constructor.
 	 *
-	 * @param Db $db Conexión.
+	 * @param Db $db Connection.
 	 */
 	public function __construct( private Db $db ) {}
 
 	/**
-	 * Ejecuta la sentencia.
+	 * Runs the statement.
 	 *
 	 * @param string $statement SQL.
 	 */

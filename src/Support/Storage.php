@@ -1,6 +1,6 @@
 <?php
 /**
- * Carpeta de archivos del plugin.
+ * Plugin file folder.
  *
  * @package Siteferry
  */
@@ -10,16 +10,16 @@ namespace Siteferry\Support;
 use Siteferry\Files\Applier;
 
 /**
- * Dumps, backups y subidas en uploads/siteferry-<clave>/. El nombre aleatorio es la
- * protección real (nginx no lee .htaccess); los archivos solo se descargan por REST.
+ * Dumps, backups and uploads in uploads/siteferry-<key>/. The random name is the
+ * real protection (nginx does not read .htaccess); files are only downloaded through REST.
  */
 final class Storage {
 
-	/** Días que se conservan los archivos. */
+	/** Days that files are kept. */
 	public const KEEP_DAYS = 7;
 
 	/**
-	 * Ruta de la carpeta, creada si no existe.
+	 * Folder path, created if missing.
 	 */
 	public static function dir(): string {
 		$key = (string) get_option( 'siteferry_storage_key' );
@@ -37,9 +37,9 @@ final class Storage {
 	}
 
 	/**
-	 * Ruta de un archivo de subida a partir de su identificador.
+	 * Path of an uploaded file, from its token.
 	 *
-	 * @param string $token Identificador (16 caracteres hexadecimales).
+	 * @param string $token Token (16 hexadecimal characters).
 	 * @param string $ext   sql | sql.gz | sfy.
 	 */
 	public static function upload_path( string $token, string $ext ): ?string {
@@ -50,7 +50,7 @@ final class Storage {
 	}
 
 	/**
-	 * Borra archivos viejos.
+	 * Deletes old files.
 	 */
 	public static function cleanup(): void {
 		$old = time() - self::KEEP_DAYS * DAY_IN_SECONDS;
@@ -59,7 +59,7 @@ final class Storage {
 				wp_delete_file( $file );
 			}
 		}
-		// Sesiones de archivos (listas, zona temporal y backup de lo reemplazado) y temporales sueltos.
+		// File sessions (lists, staging area and backup of what was replaced) and stray temporary files.
 		foreach ( (array) glob( self::dir() . '/{files-*,tmp-*}', GLOB_BRACE ) as $path ) {
 			if ( filemtime( $path ) < $old ) {
 				Applier::remove_tree( $path );

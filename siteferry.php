@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Siteferry
- * Description:       Exporta, importa y reemplaza en la base de datos de WordPress, con reemplazo seguro en datos serializados.
+ * Description:       Export, import and search-replace the WordPress database safely across serialized data, and move databases and files between sites.
  * Version:           0.4.0
  * Requires at least: 6.0
  * Requires PHP:      8.1
@@ -9,6 +9,7 @@
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       siteferry
+ * Domain Path:       /languages
  *
  * @package   Siteferry
  * @copyright 2026 Kuroda Sensei

@@ -1,6 +1,6 @@
 <?php
 /**
- * Pruebas del formato de paquete de archivos.
+ * Tests for the file package format.
  *
  * @package Siteferry
  */
@@ -58,7 +58,7 @@ final class PackageTest extends TestCase {
 		return $list;
 	}
 
-	/** Paquete armado a mano: [path, offset, size, md5, data]. */
+	/** Hand-built package: [path, offset, size, md5, data]. */
 	private static function craft( array $items, string $tail = '' ): string {
 		$index = array();
 		$body  = '';
@@ -85,20 +85,20 @@ final class PackageTest extends TestCase {
 			$built  = Package::build( $list, $src, $cursor, 512 * 1024, 10 );
 			$cursor = $built['cursor'] ? json_decode( json_encode( $built['cursor'] ), true ) : null;
 			Package::extract( $built['package'], $dst, true );
-			$second = Package::extract( $built['package'], $dst, true ); // Reintento tras un corte de red.
+			$second = Package::extract( $built['package'], $dst, true ); // Retry after a network drop.
 			$this->assertSame( array(), $second['failed'] );
 			++$count;
 		} while ( $cursor );
 
 		$this->assertGreaterThan( 6, $count );
 		$this->assertSame( $this->scan( 'src' ), $this->scan( 'dst' ) );
-		$this->assertSame( array(), glob( "$this->tmp/dst/*/*" . Scanner::PART ), 'no quedan partes' );
+		$this->assertSame( array(), glob( "$this->tmp/dst/*/*" . Scanner::PART ), 'no parts left' );
 	}
 
 	public function test_chunks_must_arrive_in_order(): void {
 		$data   = str_repeat( 'x', 100 );
 		$result = Package::extract( self::craft( array( array( 'a.bin', 50, 100, md5( $data ), substr( $data, 50 ) ) ) ), new PathGuard( "$this->tmp/dst" ), true );
-		$this->assertSame( array( 'a.bin' => 'falta un tramo anterior' ), $result['failed'] );
+		$this->assertSame( array( 'a.bin' => 'a previous chunk is missing' ), $result['failed'] );
 	}
 
 	public function test_file_changed_mid_transfer_is_not_placed(): void {
@@ -108,7 +108,7 @@ final class PackageTest extends TestCase {
 		$dst   = new PathGuard( "$this->tmp/dst" );
 		$first = Package::build( $list, $src, null, 100 * 1024 );
 		Package::extract( $first['package'], $dst, true );
-		file_put_contents( "$this->tmp/src/grande.bin", random_bytes( 200 * 1024 ) ); // Cambia en medio.
+		file_put_contents( "$this->tmp/src/grande.bin", random_bytes( 200 * 1024 ) ); // Changes midway.
 		$second = Package::build( $list, $src, $first['cursor'], 100 * 1024 );
 		$result = Package::extract( $second['package'], $dst, true );
 		$this->assertArrayHasKey( 'grande.bin', $result['failed'] );
@@ -129,18 +129,18 @@ final class PackageTest extends TestCase {
 	public function test_malformed_packages_write_nothing(): void {
 		$ok  = array( 'ok.txt', 0, 2, md5( 'ok' ), 'ok' );
 		$bad = array(
-			'ruta con ..'          => self::craft( array( $ok, array( '../fuera.txt', 0, 1, md5( 'x' ), 'x' ) ) ),
-			'ruta absoluta'        => self::craft( array( array( '/etc/x', 0, 1, md5( 'x' ), 'x' ) ) ),
-			'bytes de menos'       => substr( self::craft( array( $ok ) ), 0, -1 ),
-			'bytes de más'         => self::craft( array( $ok ), 'extra' ),
-			'cabecera falsa'       => 'PK' . self::craft( array( $ok ) ),
-			'tramo mayor que size' => self::craft( array( array( 'x.txt', 0, 1, md5( 'xx' ), 'xx' ) ) ),
-			'md5 no hexadecimal'   => self::craft( array( array( 'x.txt', 0, 1, 'zzz', 'x' ) ) ),
+			'path with ..'          => self::craft( array( $ok, array( '../fuera.txt', 0, 1, md5( 'x' ), 'x' ) ) ),
+			'absolute path'        => self::craft( array( array( '/etc/x', 0, 1, md5( 'x' ), 'x' ) ) ),
+			'too few bytes'        => substr( self::craft( array( $ok ) ), 0, -1 ),
+			'too many bytes'       => self::craft( array( $ok ), 'extra' ),
+			'fake header'         => 'PK' . self::craft( array( $ok ) ),
+			'chunk larger than size' => self::craft( array( array( 'x.txt', 0, 1, md5( 'xx' ), 'xx' ) ) ),
+			'non-hex md5'         => self::craft( array( array( 'x.txt', 0, 1, 'zzz', 'x' ) ) ),
 		);
 		foreach ( $bad as $case => $package ) {
 			try {
 				Package::extract( $package, new PathGuard( "$this->tmp/dst" ), true );
-				$this->fail( 'Debió rechazar: ' . $case );
+				$this->fail( 'Should have rejected: ' . $case );
 			} catch ( \RuntimeException $e ) {
 				$this->assertFileDoesNotExist( "$this->tmp/dst/ok.txt", $case );
 			}
@@ -166,11 +166,11 @@ final class PackageTest extends TestCase {
 		);
 		$this->assertSame( array( 'bien.txt' ), $result['done'] );
 		$this->assertSame( array( 'shell.php', 'img/foto.php.jpg', '.htaccess', 'enlace/robado.txt', 'falso.txt' ), array_keys( $result['failed'] ) );
-		$this->assertSame( array(), glob( "$this->tmp/afuera/*" ), 'nada se escribió por el symlink' );
+		$this->assertSame( array(), glob( "$this->tmp/afuera/*" ), 'nothing was written through the symlink' );
 		$this->assertFileDoesNotExist( "$this->tmp/dst/shell.php" );
 		$this->assertFileDoesNotExist( "$this->tmp/dst/falso.txt" );
 
-		// En temas y plugins (media = false) el PHP sí se acepta.
+		// In themes and plugins (media = false) PHP is accepted.
 		$code = Package::extract( self::craft( array( array( 'mi-plugin/mi-plugin.php', 0, 5, md5( '<?php' ), '<?php' ) ) ), new PathGuard( "$this->tmp/dst" ), false );
 		$this->assertSame( array( 'mi-plugin/mi-plugin.php' ), $code['done'] );
 	}

@@ -1,6 +1,6 @@
 <?php
 /**
- * Pruebas del Replacer.
+ * Tests for the Replacer.
  *
  * @package Siteferry
  */
@@ -134,7 +134,7 @@ final class ReplacerTest extends TestCase {
 }
 
 /**
- * Objeto con propiedades de las tres visibilidades.
+ * Object with properties of all three visibilities.
  */
 final class FixtureWidget {
 	public string $a;

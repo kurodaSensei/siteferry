@@ -1,6 +1,6 @@
 <?php
 /**
- * Guarda el job actual.
+ * Stores the current job.
  *
  * @package Siteferry
  */
@@ -8,19 +8,19 @@
 namespace Siteferry\Job;
 
 /**
- * El job vive en una option sin autoload. Solo hay uno a la vez.
+ * The job lives in a non-autoloaded option. There is only one at a time.
  */
 final class JobStore {
 
-	// ponytail: un único job global; si hace falta paralelismo, pasar a un bloqueo por job.
+	// ponytail: a single global job; if parallelism is needed, switch to a per-job lock.
 
 	private const OPTION = 'siteferry_job';
 
-	/** Segundos sin actividad tras los que un job abierto se considera abandonado. */
+	/** Seconds of inactivity after which an open job is considered abandoned. */
 	public const STALE = 600;
 
 	/**
-	 * Job actual o null.
+	 * Current job, or null.
 	 */
 	public static function get(): ?array {
 		wp_cache_delete( self::OPTION, 'options' );
@@ -29,7 +29,7 @@ final class JobStore {
 	}
 
 	/**
-	 * Guarda el job.
+	 * Saves the job.
 	 *
 	 * @param array $job Job.
 	 */
@@ -38,7 +38,7 @@ final class JobStore {
 	}
 
 	/**
-	 * Si hay un job en curso que no está abandonado.
+	 * Whether there is an in-progress job that is not abandoned.
 	 */
 	public static function busy(): bool {
 		$job = self::get();
@@ -46,9 +46,9 @@ final class JobStore {
 	}
 
 	/**
-	 * Bloqueo de MySQL para que dos peticiones no avancen el mismo job a la vez.
+	 * MySQL lock so two requests do not advance the same job at once.
 	 *
-	 * @param int $wait Segundos de espera.
+	 * @param int $wait Seconds to wait.
 	 */
 	public static function lock( int $wait = 0 ): bool {
 		global $wpdb;
@@ -56,7 +56,7 @@ final class JobStore {
 	}
 
 	/**
-	 * Libera el bloqueo.
+	 * Releases the lock.
 	 */
 	public static function unlock(): void {
 		global $wpdb;

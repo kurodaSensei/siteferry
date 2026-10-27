@@ -1,6 +1,6 @@
 <?php
 /**
- * Llamadas firmadas a otro sitio.
+ * Signed calls to another site.
  *
  * @package Siteferry
  */
@@ -8,39 +8,39 @@
 namespace Siteferry\Remote;
 
 /**
- * Cliente HTTP del protocolo entre sitios: firma cada petición y solo acepta respuestas
- * firmadas con la misma clave.
+ * HTTP client for the site-to-site protocol: signs every request and only accepts responses
+ * signed with the same key.
  */
 final class Client {
 
 	/**
 	 * Constructor.
 	 *
-	 * @param string $url        URL del otro sitio.
-	 * @param string $key        Clave del otro sitio.
-	 * @param bool   $verify_ssl Verificar el certificado HTTPS.
+	 * @param string $url        URL of the other site.
+	 * @param string $key        Key of the other site.
+	 * @param bool   $verify_ssl Verify the HTTPS certificate.
 	 */
 	public function __construct( private string $url, private string $key, private bool $verify_ssl = true ) {}
 
 	/**
-	 * Cliente con la conexión guardada en un job.
+	 * Client with the connection stored in a job.
 	 *
-	 * @param array $job Job de pull o push.
+	 * @param array $job Pull or push job.
 	 */
 	public static function for_job( array $job ): self {
 		return new self( $job['remote']['url'], $job['remote']['key'], $job['remote']['verify_ssl'] );
 	}
 
 	/**
-	 * Llama a una operación. Los cortes de red y errores 5xx se reintentan: todas las operaciones
-	 * son seguras de repetir salvo push_begin.
+	 * Calls an operation. Network drops and 5xx errors are retried: every operation
+	 * is safe to repeat except push_begin.
 	 *
-	 * @param string      $op     Operación.
-	 * @param array       $args   Argumentos.
-	 * @param string|null $binary Binario que acompaña a la petición (files_put).
-	 * @return array Datos; si la respuesta trae un binario (files_get), va en 'package'.
+	 * @param string      $op     Operation.
+	 * @param array       $args   Arguments.
+	 * @param string|null $binary Binary that accompanies the request (files_put).
+	 * @return array Data; if the response carries a binary (files_get), it goes in 'package'.
 	 *
-	 * @throws \RuntimeException Si no hay respuesta válida.
+	 * @throws \RuntimeException If there is no valid response.
 	 */
 	public function call( string $op, array $args = array(), ?string $binary = null ): array {
 		$attempts = 'push_begin' === $op ? 1 : 3;
@@ -54,7 +54,7 @@ final class Client {
 					'redirection' => 0,
 					'sslverify'   => $this->verify_ssl,
 					'headers'     => array(
-						// Con binario no es JSON válido: la REST de WordPress lo rechazaría al intentar leerlo.
+						// With a binary it is not valid JSON: the WordPress REST API would reject it when trying to read it.
 						'Content-Type' => null === $binary ? 'application/json' : 'application/octet-stream',
 						Signer::HEADER => Signer::sign( $message, $this->key ),
 					),
@@ -65,7 +65,7 @@ final class Client {
 					sleep( 2 * $attempt );
 					continue;
 				}
-				throw new \RuntimeException( 'No se pudo conectar con ' . $this->url . ': ' . $response->get_error_message() );
+				throw new \RuntimeException( 'Could not connect to ' . $this->url . ': ' . $response->get_error_message() );
 			}
 			$code = (int) wp_remote_retrieve_response_code( $response );
 			$raw  = (string) wp_remote_retrieve_body( $response );
@@ -79,13 +79,13 @@ final class Client {
 			}
 			$data = json_decode( $line, true );
 			if ( ( $data['nonce'] ?? null ) !== json_decode( $message, true )['nonce'] ) {
-				throw new \RuntimeException( 'El sitio remoto devolvió una respuesta que no corresponde a la petición.' );
+				throw new \RuntimeException( 'The remote site returned a response that does not match the request.' );
 			}
 			if ( null !== $package && hash( 'sha256', $package ) !== ( $data['sha256'] ?? null ) ) {
-				throw new \RuntimeException( 'El paquete del sitio remoto llegó dañado.' );
+				throw new \RuntimeException( 'The package from the remote site arrived corrupted.' );
 			}
 			if ( empty( $data['ok'] ) ) {
-				throw new \RuntimeException( 'Sitio remoto: ' . ( $data['error'] ?? 'error desconocido' ) );
+				throw new \RuntimeException( 'Remote site: ' . ( $data['error'] ?? 'unknown error' ) );
 			}
 			$result = (array) $data['data'];
 			if ( null !== $package ) {
@@ -96,23 +96,23 @@ final class Client {
 	}
 
 	/**
-	 * Explica una respuesta sin firma válida.
+	 * Explains a response without a valid signature.
 	 *
-	 * @param int    $code     Código HTTP.
-	 * @param string $raw      Cuerpo (no confiable).
-	 * @param string $location Destino de una redirección.
+	 * @param int    $code     HTTP code.
+	 * @param string $raw      Body (untrusted).
+	 * @param string $location Redirect target.
 	 */
 	private function unsigned( int $code, string $raw, string $location ): string {
-		// Se busca como texto: si un plugin del otro sitio imprime algo antes, el JSON llega con basura delante.
+		// Searched as text: if a plugin on the other site prints something first, the JSON arrives with junk in front.
 		if ( str_contains( $raw, '"code":"siteferry_signature"' ) ) {
-			return 'La clave de conexión no coincide con la del sitio remoto. Copia de nuevo su información de conexión.';
+			return 'The connection key does not match the one on the remote site. Copy its connection info again.';
 		}
 		if ( $code >= 300 && $code < 400 ) {
-			return "El sitio remoto redirige a $location. Usa esa URL en la conexión.";
+			return "The remote site redirects to $location. Use that URL in the connection.";
 		}
 		if ( 404 === $code ) {
-			return 'El sitio remoto no tiene Siteferry activo o la URL no es correcta.';
+			return 'The remote site does not have Siteferry active or the URL is incorrect.';
 		}
-		return "Respuesta no válida del sitio remoto (HTTP $code). ¿Tiene Siteferry activo y actualizado?";
+		return "Invalid response from the remote site (HTTP $code). Does it have Siteferry active and up to date?";
 	}
 }
