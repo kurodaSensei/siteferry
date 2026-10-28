@@ -1,4 +1,9 @@
-# Siteferry
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/brand/logo-dark.png">
+    <img src=".github/brand/logo-light.png" alt="Siteferry" width="381">
+  </picture>
+</h1>
 
 [![CI](https://github.com/kurodaSensei/siteferry/actions/workflows/ci.yml/badge.svg)](https://github.com/kurodaSensei/siteferry/actions/workflows/ci.yml)
 

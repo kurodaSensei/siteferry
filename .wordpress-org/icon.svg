@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Siteferry">
+  <rect width="64" height="64" fill="#0E2A3B"/>
+  <g transform="translate(11 11) scale(0.656)">
+    <rect x="18" y="13" width="28" height="7" rx="3.5" fill="#12A39A"/>
+    <rect x="14" y="24" width="36" height="7" rx="3.5" fill="#12A39A" opacity="0.65"/>
+    <path d="M8 36h48l-6.5 12h-35z" fill="#F4F7F6"/>
+    <path d="M6 55c5 0 5-3 10-3s5 3 10 3 5-3 10-3 5 3 10 3 5-3 10-3" fill="none" stroke="#12A39A" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>
