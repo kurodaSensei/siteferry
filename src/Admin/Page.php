@@ -83,6 +83,7 @@ final class Page {
 				<span class="sf-grow"></span>
 				<span class="sf-accepts" id="siteferry-accepts" data-on="<?php echo array_filter( array_intersect_key( $settings, array_flip( array( 'allow_pull', 'allow_pull_files', 'allow_push', 'allow_push_code' ) ) ) ) ? '1' : '0'; ?>"><?php echo esc_html( self::accepts_text( $settings ) ); ?></span>
 			</header>
+			<hr class="wp-header-end">
 
 			<div class="sf-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Siteferry operations', 'siteferry' ); ?>">
 				<?php foreach ( $tabs as $key => $label ) : ?>
