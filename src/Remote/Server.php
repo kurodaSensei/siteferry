@@ -189,7 +189,9 @@ final class Server {
 
 	/**
 	 * Runs a chunk of statements on _sft_ tables. Chunks are numbered: a repeated one
-	 * (a retry after a network drop) is ignored, so rows are never inserted twice.
+	 * (a retry after a network drop) is ignored, so rows are never inserted twice. Each
+	 * statement applied is recorded with the chunk's hash, so a chunk whose request was cut
+	 * off halfway is completed when it comes again, not applied twice.
 	 *
 	 * @param array $args id, seq, statements.
 	 *
@@ -214,13 +216,30 @@ final class Server {
 				throw new \RuntimeException( 'Statement not allowed in a push.' );
 			}
 		}
+		$hash    = md5( (string) ( $args['statements'] ?? '' ) );
+		$applied = 0;
+		$partial = $job['applying'] ?? array();
+		if ( isset( $partial['seq'] ) && $partial['seq'] === $seq ) {
+			if ( $partial['hash'] !== $hash ) {
+				throw new \RuntimeException( "Chunk $seq came again with other content after a cut-off request." );
+			}
+			$applied = (int) $partial['applied'];
+		}
 		$this->db->in_migration_session(
-			function () use ( $statements ) {
-				foreach ( $statements as $sql ) {
+			function () use ( $statements, $seq, $hash, &$applied, &$job ) {
+				foreach ( array_slice( $statements, $applied ) as $sql ) {
 					$this->db->query( str_starts_with( $sql, 'CREATE' ) ? $this->schema->known_collations( $sql ) : $sql );
+					// ponytail: a cut between a statement and this save still repeats that one statement.
+					$job['applying'] = array(
+						'seq'     => $seq,
+						'hash'    => $hash,
+						'applied' => ++$applied,
+					);
+					( $this->save )( $job );
 				}
 			}
 		);
+		unset( $job['applying'] );
 		$job['received_seq'] = $seq;
 		$job['heartbeat']    = time();
 		( $this->save )( $job );

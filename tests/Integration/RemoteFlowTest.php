@@ -35,6 +35,14 @@ final class RemoteFlowTest extends DbTestCase {
 	 */
 	private int $chunk_repeats = 1;
 
+	/**
+	 * Received chunks whose confirming save the remote loses once (a request cut off right
+	 * after applying the chunk, before its job was saved).
+	 *
+	 * @var array<int, true>|null
+	 */
+	private ?array $lost_saves = null;
+
 	private function seeded( string $prefix, string $home ): Db {
 		[ $db ] = $this->database();
 		$sql    = str_replace( '__P__', $prefix, (string) file_get_contents( dirname( __DIR__ ) . '/fixtures/seed-wp.sql' ) );
@@ -59,6 +67,11 @@ final class RemoteFlowTest extends DbTestCase {
 			$perms,
 			fn() => $this->remote_job,
 			function ( array $job ): void {
+				$seq = (int) ( $job['received_seq'] ?? 0 );
+				if ( null !== $this->lost_saves && $seq > (int) ( $this->remote_job['received_seq'] ?? 0 ) && ! isset( $this->lost_saves[ $seq ] ) ) {
+					$this->lost_saves[ $seq ] = true;
+					return;
+				}
 				$this->remote_job = $job;
 			},
 			'test'
@@ -366,6 +379,23 @@ final class RemoteFlowTest extends DbTestCase {
 		$this->assert_b_has_site_a( $local );
 		foreach ( array( 'options', 'posts', 'usermeta', 'parent', 'child' ) as $table ) {
 			$this->assertSame( $remote->value( "SELECT COUNT(*) FROM wpa_$table" ), $local->value( "SELECT COUNT(*) FROM wpb_$table" ) . '', $table );
+		}
+	}
+
+	public function test_push_survives_chunks_cut_off_on_the_remote_after_applying(): void {
+		$local  = $this->seeded( 'wpa_', self::OLD );
+		$remote = $this->site_b();
+		$server = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
+
+		$this->chunk_repeats = 2; // The client retries every chunk...
+		$this->lost_saves    = array(); // ...and the remote lost the save of each one the first time.
+		$job                 = Planner::create( 'push', $this->remote_input( $server ), $this->site( 'wpa_', self::OLD ), new Schema( $local ) );
+		$this->run_job( $local, $job, $this->client( $server ) );
+
+		$this->assertNotEmpty( $this->lost_saves );
+		$this->assert_b_has_site_a( $remote );
+		foreach ( array( 'options', 'posts', 'usermeta', 'parent', 'child' ) as $table ) {
+			$this->assertSame( $local->value( "SELECT COUNT(*) FROM wpa_$table" ), $remote->value( "SELECT COUNT(*) FROM wpb_$table" ) . '', $table );
 		}
 	}
 
