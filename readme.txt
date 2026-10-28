@@ -4,7 +4,7 @@ Tags: migration, search replace, database, backup, wp-cli
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -93,11 +93,16 @@ No. The admin page uses IBM Plex Sans, bundled in `assets/fonts` under the SIL O
 
 == Changelog ==
 
-= 0.5.0 =
+= 0.6.0 =
+* New: redesigned admin screens, with a pull/push wizard, a review of the file comparison, a progress screen you can leave while it runs, and a result screen with undo and the backup.
+* New: bring only new files, and review the comparison before anything is transferred.
+* New: a pull or push pauses when the other site stops answering and resumes from where it stopped.
 * New: Spanish (es_ES) translation. The admin interface is translatable.
 * New: deleting the plugin removes its options, temporary tables and working folder.
-* Fix: repeating an import step after a cut-off request no longer fails with "Duplicate entry". The load resumes where it stopped.
-* Fix: repeated copy, pull, export, backup and finalize steps no longer duplicate rows or dump statements, and no longer fail after the tables were swapped.
+* Fix: a clock difference between the two sites no longer makes a pull fail.
+* Fix: a pull no longer stops with "cookie check failed" after the tables are swapped.
+* Fix: importing files larger than one upload chunk, and pushed chunks cut off on the receiving site.
+* Fix: repeated or cut-off steps no longer duplicate rows or fail with "Duplicate entry".
 
 = 0.4.0 =
 * First public release.

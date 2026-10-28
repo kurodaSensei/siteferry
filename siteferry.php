@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Siteferry
  * Description:       Export, import and search-replace the WordPress database safely across serialized data, and move databases and files between sites.
- * Version:           0.5.0
+ * Version:           0.6.0
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Author:            Kuroda Sensei
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'SITEFERRY_VERSION', '0.5.0' );
+define( 'SITEFERRY_VERSION', '0.6.0' );
 define( 'SITEFERRY_FILE', __FILE__ );
 define( 'SITEFERRY_PATH', plugin_dir_path( __FILE__ ) );
 
