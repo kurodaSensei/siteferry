@@ -40,6 +40,7 @@ final class Client {
 	 * @param string|null $binary Binary that accompanies the request (files_put).
 	 * @return array Data; if the response carries a binary (files_get), it goes in 'package'.
 	 *
+	 * @throws Unreachable If the other site cannot be reached after the retries.
 	 * @throws \RuntimeException If there is no valid response.
 	 */
 	public function call( string $op, array $args = array(), ?string $binary = null ): array {
@@ -66,13 +67,16 @@ final class Client {
 					sleep( 2 * $attempt );
 					continue;
 				}
-				throw new \RuntimeException( 'Could not connect to ' . $this->url . ': ' . $response->get_error_message() );
+				throw new Unreachable( 'Could not connect to ' . $this->url . ': ' . $response->get_error_message() );
 			}
 			$code = (int) wp_remote_retrieve_response_code( $response );
 			$raw  = (string) wp_remote_retrieve_body( $response );
-			if ( $code >= 500 && $attempt < $attempts ) {
-				sleep( 2 * $attempt );
-				continue;
+			if ( $code >= 500 ) {
+				if ( $attempt < $attempts ) {
+					sleep( 2 * $attempt );
+					continue;
+				}
+				throw new Unreachable( "The remote site answered HTTP $code." );
 			}
 			[ $line, $package ] = Signer::split( $raw );
 			if ( ! Signer::valid( $line, (string) wp_remote_retrieve_header( $response, strtolower( Signer::HEADER ) ), $this->key ) ) {

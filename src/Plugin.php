@@ -145,7 +145,7 @@ final class Plugin {
 	 * Creates and stores a job.
 	 *
 	 * @param string $intent export | replace | import | pull | push.
-	 * @param array  $input  Opciones (ver Planner::create); pull/push llevan `connection` ("URL CLAVE").
+	 * @param array  $input  Options (see Planner::create); pull and push carry `connection` ("URL KEY").
 	 *
 	 * @throws \RuntimeException If another job is in progress or the remote site does not respond.
 	 * @throws \InvalidArgumentException If the request is invalid.
@@ -236,7 +236,7 @@ final class Plugin {
 	public static function cleanup(): void {
 		Storage::cleanup();
 		$job = JobStore::get();
-		if ( $job && Runner::is_open( $job ) && ! JobStore::busy() ) {
+		if ( $job && Runner::is_unfinished( $job ) && ! JobStore::busy() ) {
 			JobStore::save( self::runner()->cancel( $job ) );
 		}
 	}
@@ -273,7 +273,57 @@ final class Plugin {
 			'warnings' => $job['warnings'],
 			'log'      => array_slice( $job['log'], -40 ),
 			'files'    => $files,
+			'remote'   => $job['remote']['url'] ?? null,
+			'phases'   => self::phases( $job ),
+			'review'   => 'review' === $job['status'] ? array(
+				'stats'        => $job['file_stats'],
+				'only_new'     => ! empty( $job['options']['only_new'] ),
+				'delete_files' => ! empty( $job['options']['delete_files'] ),
+			) : null,
 		);
+	}
+
+	/**
+	 * The job's steps grouped into the few phases the UI lists, each done, current or to do.
+	 *
+	 * @param array $job Job.
+	 * @return list<array{key: string, state: string}>
+	 */
+	private static function phases( array $job ): array {
+		$by_type = array(
+			'preflight'      => 'checks',
+			'files_scan'     => 'compare',
+			'files_diff'     => 'compare',
+			'review'         => 'review',
+			'files_transfer' => 'files',
+			'site_files'     => 'files',
+			'site_unpack'    => 'files',
+			'files_undo'     => 'files',
+			'finalize'       => 'swap',
+			'files_finalize' => 'swap',
+			'remote_wait'    => 'swap',
+			'push_finish'    => 'swap',
+			'cleanup'        => 'finish',
+		);
+		$states  = array();
+		foreach ( $job['steps'] as $i => $step ) {
+			$key = 'backup' === ( $step['file'] ?? '' ) ? 'backup' : ( $by_type[ $step['type'] ] ?? 'database' );
+			if ( 'done' === $job['status'] || $i < $job['index'] ) {
+				$states[ $key ][] = 'done';
+			} else {
+				$states[ $key ][] = $i === $job['index'] ? 'current' : 'todo';
+			}
+		}
+		$out = array();
+		foreach ( $states as $key => $list ) {
+			$unique = array_unique( $list );
+			$out[]  = array(
+				'key'   => $key,
+				// A phase partly done, or holding the current step, is the one in progress.
+				'state' => 1 === count( $unique ) ? reset( $unique ) : 'current',
+			);
+		}
+		return $out;
 	}
 
 	/**

@@ -38,11 +38,11 @@ final class JobStore {
 	}
 
 	/**
-	 * Whether there is an in-progress job that is not abandoned.
+	 * Whether there is an unfinished job that is not abandoned.
 	 */
 	public static function busy(): bool {
 		$job = self::get();
-		return Runner::is_open( $job ) && time() - (int) $job['heartbeat'] < self::STALE;
+		return Runner::is_unfinished( $job ) && time() - (int) $job['heartbeat'] < self::STALE;
 	}
 
 	/**

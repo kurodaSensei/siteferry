@@ -65,6 +65,8 @@ final class Planner {
 				'source_prefix'  => preg_replace( '/[^A-Za-z0-9_]/', '', (string) ( $input['source_prefix'] ?? '' ) ),
 				'files'          => array_values( array_intersect( Roots::ALL, (array) ( $input['files'] ?? array() ) ) ),
 				'delete_files'   => ! empty( $input['delete_files'] ),
+				'only_new'       => ! empty( $input['only_new'] ),
+				'review'         => ! empty( $input['review'] ),
 				'database'       => ! array_key_exists( 'database', $input ) || ! empty( $input['database'] ),
 			),
 			'steps'       => array( self::step( 'preflight', 'Preflight checks' ) ),
@@ -361,6 +363,12 @@ final class Planner {
 				'out'  => 'target',
 			);
 			$job['steps'][] = self::step( 'files_diff', "Files ($root): compare" ) + array( 'root' => $root );
+		}
+		// Every folder is compared before anything travels, so a review sees the whole picture.
+		if ( $job['options']['review'] && $job['options']['files'] ) {
+			$job['steps'][] = self::step( 'review', 'Review the file comparison' );
+		}
+		foreach ( $job['options']['files'] as $root ) {
 			$job['steps'][] = self::step( 'files_transfer', "Files ($root): transfer" ) + array( 'root' => $root );
 		}
 	}

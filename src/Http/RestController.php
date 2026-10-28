@@ -33,6 +33,7 @@ final class RestController {
 			'/jobs/current'                       => array( 'GET', 'current' ),
 			'/jobs/(?P<id>[a-f0-9]{16})/step'     => array( 'POST', 'step' ),
 			'/jobs/(?P<id>[a-f0-9]{16})/cancel'   => array( 'POST', 'cancel' ),
+			'/jobs/(?P<id>[a-f0-9]{16})/review'   => array( 'POST', 'review' ),
 			'/jobs/(?P<id>[a-f0-9]{16})/download' => array( 'GET', 'download' ),
 			'/uploads'                            => array( 'POST', 'upload' ),
 			'/remote/hello'                       => array( 'POST', 'hello' ),
@@ -80,6 +81,8 @@ final class RestController {
 			'connection'     => (string) $request->get_param( 'connection' ),
 			'files'          => array_map( 'strval', (array) $request->get_param( 'files' ) ),
 			'delete_files'   => (bool) $request->get_param( 'delete_files' ),
+			'only_new'       => (bool) $request->get_param( 'only_new' ),
+			'review'         => (bool) $request->get_param( 'review' ),
 		);
 		if ( null !== $request->get_param( 'database' ) ) {
 			$input['database'] = (bool) $request->get_param( 'database' );
@@ -171,7 +174,7 @@ final class RestController {
 		if ( is_wp_error( $job ) ) {
 			return $job;
 		}
-		if ( ! Runner::is_open( $job ) ) {
+		if ( ! Runner::is_open( $job ) && 'paused' !== $job['status'] ) {
 			return new \WP_REST_Response( Plugin::view( $job ) );
 		}
 		if ( ! JobStore::lock() ) {
@@ -179,6 +182,30 @@ final class RestController {
 		}
 		try {
 			$job = Plugin::run_step( JobStore::get() ?? $job, Plugin::step_seconds() );
+		} finally {
+			JobStore::unlock();
+		}
+		return new \WP_REST_Response( Plugin::view( $job ) );
+	}
+
+	/**
+	 * Applies the choice made in the file review and lets the job continue.
+	 *
+	 * @param \WP_REST_Request $request Request (only_new, delete_files).
+	 */
+	public static function review( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+		$job = self::job( $request );
+		if ( is_wp_error( $job ) ) {
+			return $job;
+		}
+		if ( ! JobStore::lock( 30 ) ) {
+			return new \WP_Error( 'siteferry_locked', __( 'A step is in progress; try again.', 'siteferry' ), array( 'status' => 409 ) );
+		}
+		try {
+			$job = Plugin::runner()->review( JobStore::get() ?? $job, (bool) $request->get_param( 'only_new' ), (bool) $request->get_param( 'delete_files' ) );
+			JobStore::save( $job );
+		} catch ( \RuntimeException $e ) {
+			return new \WP_Error( 'siteferry_invalid', $e->getMessage(), array( 'status' => 400 ) );
 		} finally {
 			JobStore::unlock();
 		}
@@ -200,7 +227,7 @@ final class RestController {
 		}
 		try {
 			$job = JobStore::get() ?? $job;
-			if ( Runner::is_open( $job ) || 'failed' === $job['status'] ) {
+			if ( Runner::is_unfinished( $job ) || 'failed' === $job['status'] ) {
 				$job = Plugin::runner()->cancel( $job );
 				JobStore::save( $job );
 			}

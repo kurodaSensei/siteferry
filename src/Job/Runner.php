@@ -25,6 +25,7 @@ use Siteferry\Files\Roots;
 use Siteferry\Files\Scanner;
 use Siteferry\Files\SitePackage;
 use Siteferry\Remote\FileOps;
+use Siteferry\Remote\Unreachable;
 use Siteferry\Support\Db;
 
 /**
@@ -58,7 +59,10 @@ final class Runner {
 	 * @param Budget $budget Available time.
 	 */
 	public function step( array $job, Budget $budget ): array {
-		if ( ! self::is_open( $job ) ) {
+		if ( 'paused' === $job['status'] ) {
+			$job['error'] = null; // Resuming: the cursor is still where the other site stopped answering.
+			self::log( $job, 'Resumed.' );
+		} elseif ( ! self::is_open( $job ) ) {
 			return $job;
 		}
 		$job['status'] = 'running';
@@ -68,6 +72,10 @@ final class Runner {
 					while ( isset( $job['steps'][ $job['index'] ] ) ) {
 						if ( 'receive' === $job['steps'][ $job['index'] ]['type'] && empty( $job['received'] ) ) {
 							break; // Waiting for data from the other site.
+						}
+						if ( 'review' === $job['steps'][ $job['index'] ]['type'] && empty( $job['reviewed'] ) ) {
+							$job['status'] = 'review'; // Waiting for a person to choose what travels.
+							break;
 						}
 						if ( $this->run_step( $job, $job['steps'][ $job['index'] ], $budget ) ) {
 							++$job['index'];
@@ -87,6 +95,10 @@ final class Runner {
 				self::forget_progress( $job );
 				self::log( $job, 'Done.' );
 			}
+		} catch ( Unreachable $e ) {
+			$job['status'] = 'paused';
+			$job['error']  = $e->getMessage();
+			self::log( $job, 'Paused: ' . $e->getMessage() );
 		} catch ( \Throwable $e ) {
 			$job['status'] = 'failed';
 			$job['error']  = $e->getMessage();
@@ -123,6 +135,15 @@ final class Runner {
 		self::forget_progress( $job );
 		self::log( $job, 'Cancelled.' );
 		return $job;
+	}
+
+	/**
+	 * Whether the job is not over yet: in progress, or waiting for a review or a resume.
+	 *
+	 * @param array|null $job Job.
+	 */
+	public static function is_unfinished( ?array $job ): bool {
+		return self::is_open( $job ) || in_array( $job['status'] ?? null, array( 'review', 'paused' ), true );
 	}
 
 	/**
@@ -199,6 +220,7 @@ final class Runner {
 				return empty( $step['remote'] ) ? $this->copy( $job, $step, $budget ) : $this->pull_copy( $job, $step );
 
 			case 'receive':
+			case 'review':
 				return true;
 
 			case 'files_scan':
@@ -1041,7 +1063,8 @@ final class Runner {
 			$this->file_list( $job, $root, 'source' ),
 			$this->file_list( $job, $root, 'target' ),
 			$this->fresh_list( $job, $root, 'send' ),
-			$job['options']['delete_files'] ? $this->fresh_list( $job, $root, 'delete' ) : null
+			$job['options']['delete_files'] ? $this->fresh_list( $job, $root, 'delete' ) : null,
+			! empty( $job['options']['only_new'] )
 		);
 		$job['file_stats'][ $root ] = $stats + array(
 			'sent'    => 0,
@@ -1054,8 +1077,37 @@ final class Runner {
 			}
 		}
 		unset( $other );
+		$mb      = static fn( int $bytes ) => number_format( $bytes / 1048576, 1 ) . ' MB';
 		$deletes = $job['options']['delete_files'] ? ', ' . $stats['delete'] . ' to delete' : '';
-		self::log( $job, "Files ($root): {$stats['send']} to send (" . number_format( $stats['bytes'] / 1048576, 1 ) . " MB)$deletes." );
+		self::log( $job, "Files ($root): {$stats['new']} new ({$mb( $stats['new_bytes'] )}), {$stats['changed']} changed ({$mb( $stats['changed_bytes'] )}), {$stats['extra']} only on the destination." );
+		self::log( $job, "Files ($root): {$stats['send']} to send ({$mb( $stats['bytes'] )})$deletes." );
+	}
+
+	/**
+	 * Applies the choice made while the job waits at its review step and continues: the
+	 * comparison is worked out again from the lists already on disk, nothing is scanned twice.
+	 *
+	 * @param array $job          Job in "review".
+	 * @param bool  $only_new     Send only files the destination does not have.
+	 * @param bool  $delete_files Delete on the destination what the source does not have.
+	 *
+	 * @throws \RuntimeException If the job is not waiting for a review.
+	 */
+	public function review( array $job, bool $only_new, bool $delete_files ): array {
+		if ( 'review' !== $job['status'] ) {
+			throw new \RuntimeException( 'This operation is not waiting for a review.' );
+		}
+		$job['options']['only_new']     = $only_new;
+		$job['options']['delete_files'] = $delete_files;
+		foreach ( array_slice( $job['steps'], 0, $job['index'] ) as $done ) {
+			if ( 'files_diff' === $done['type'] ) {
+				$this->files_diff( $job, $done['root'] );
+			}
+		}
+		$job['reviewed'] = true;
+		$job['status']   = 'running';
+		self::log( $job, 'Review: ' . ( $only_new ? 'only new files' : 'new and changed files' ) . ( $delete_files ? ', deleting what only the destination has.' : '.' ) );
+		return $job;
 	}
 
 	/**

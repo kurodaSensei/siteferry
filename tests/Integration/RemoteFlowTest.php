@@ -13,6 +13,7 @@ use Siteferry\Engine\Schema;
 use Siteferry\Job\Planner;
 use Siteferry\Job\Runner;
 use Siteferry\Remote\Server;
+use Siteferry\Remote\Unreachable;
 use Siteferry\Support\Db;
 
 final class RemoteFlowTest extends DbTestCase {
@@ -270,6 +271,80 @@ final class RemoteFlowTest extends DbTestCase {
 		$this->assertFileExists( $job['files']['backup'] );
 		$this->assertArrayNotHasKey( 'key', $job['remote'], 'the other site\'s key is not stored' );
 		$this->assertSame( self::OLD, $this->option( $remote, 'wpa_options', 'home' ), 'the remote does not change' );
+	}
+
+	public function test_pull_stops_to_review_the_files_and_can_bring_only_new_ones(): void {
+		$remote = $this->seeded( 'wpa_', self::OLD );
+		$local  = $this->site_b();
+		$this->with_files( array(), 'remote' );
+		$this->with_files( array(), 'local' );
+		$this->put( 'remote', 'uploads/nueva.jpg', 'nueva' );
+		$this->put( 'remote', 'uploads/cambiada.jpg', 'AAAA' );
+		$this->put( 'local', 'uploads/cambiada.jpg', 'BBBB' );
+		$this->put( 'local', 'uploads/sobra.jpg', 'solo aquí' );
+
+		$server = $this->server( $remote, 'wpa_', self::OLD, array( 'allow_pull' => true, 'allow_pull_files' => true ) );
+		$job    = Planner::create(
+			'pull',
+			$this->remote_input( $server, array( 'files' => array( 'uploads' ), 'database' => false, 'review' => true ) ),
+			$this->with_files( $this->site( 'wpb_', self::NEW ), 'local' ),
+			new Schema( $local )
+		);
+		$runner = new Runner( $local, $this->client( $server ) );
+		for ( $i = 0; $i < 500 && Runner::is_open( $job ); $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+
+		$this->assertSame( 'review', $job['status'], (string) $job['error'] );
+		$stats = $job['file_stats']['uploads'];
+		$this->assertSame( array( 1, 1, 1 ), array( $stats['new'], $stats['changed'], $stats['extra'] ), 'new, changed and only on this site' );
+		$this->assertFileDoesNotExist( "$this->storage/local/uploads/nueva.jpg", 'nothing travels before the review' );
+
+		$job = $runner->review( $job, true, false );
+		$this->assertSame( 1, $job['file_stats']['uploads']['send'] );
+		$job = $this->run_job( $local, $job, $this->client( $server ) );
+
+		$this->assertSame( 'nueva', file_get_contents( "$this->storage/local/uploads/nueva.jpg" ) );
+		$this->assertSame( 'BBBB', file_get_contents( "$this->storage/local/uploads/cambiada.jpg" ), 'only new files: a changed one is left alone' );
+		$this->assertSame( 'solo aquí', file_get_contents( "$this->storage/local/uploads/sobra.jpg" ) );
+	}
+
+	public function test_pull_pauses_when_the_remote_is_unreachable_and_resumes(): void {
+		$remote = $this->seeded( 'wpa_', self::OLD );
+		$local  = $this->site_b();
+		$this->with_files( array(), 'remote' );
+		$this->with_files( array(), 'local' );
+		$this->put( 'remote', 'uploads/a.jpg', 'a' );
+		$this->put( 'remote', 'uploads/b.jpg', 'b' );
+
+		$server = $this->server( $remote, 'wpa_', self::OLD, array( 'allow_pull' => true, 'allow_pull_files' => true ) );
+		$real   = $this->client( $server );
+		$down   = true;
+		$client = function ( array $job, string $op, array $args, ?string $binary = null ) use ( $real, &$down ): array {
+			if ( 'files_get' === $op && $down ) {
+				$down = false; // The other site comes back for the next request.
+				throw new Unreachable( 'Could not connect to http://remoto.test: timed out.' );
+			}
+			return $real( $job, $op, $args, $binary );
+		};
+		$job    = Planner::create(
+			'pull',
+			$this->remote_input( $server, array( 'files' => array( 'uploads' ) ) ),
+			$this->with_files( $this->site( 'wpb_', self::NEW ), 'local' ),
+			new Schema( $local )
+		);
+		$runner = new Runner( $local, $client );
+		for ( $i = 0; $i < 500 && Runner::is_open( $job ); $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+
+		$this->assertSame( 'paused', $job['status'], 'a network problem pauses the job instead of failing it' );
+		$this->assertStringContainsString( 'timed out', (string) $job['error'] );
+
+		$job = $this->run_job( $local, $runner->step( $job, new Budget( 0 ) ), $client );
+
+		$this->assert_b_has_site_a( $local );
+		$this->assertSame( $this->tree( "$this->storage/remote/uploads" ), $this->tree( "$this->storage/local/uploads" ) );
 	}
 
 	public function test_pull_with_repeated_steps_brings_the_same_site(): void {

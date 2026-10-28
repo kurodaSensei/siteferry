@@ -132,8 +132,39 @@ final class FilesTest extends TestCase {
 		$delete = $this->manifest( 'delete' );
 		$stats  = Diff::compute( $source, $target, $send, $delete );
 
-		$this->assertSame( array( 'send' => 2, 'bytes' => 8, 'delete' => 1 ), $stats );
+		$this->assertSame(
+			array(
+				'send'          => 2,
+				'bytes'         => 8,
+				'delete'        => 1,
+				'new'           => 1,
+				'new_bytes'     => 5,
+				'changed'       => 1,
+				'changed_bytes' => 3,
+				'extra'         => 1,
+				'extra_bytes'   => 4,
+			),
+			$stats
+		);
 		$this->assertSame( array( 'cambiado.jpg', 'nuevo.jpg' ), array_keys( $this->read( $send ) ) );
 		$this->assertSame( array( 'sobra.jpg' ), array_keys( $this->read( $delete ) ) );
+	}
+
+	public function test_diff_can_send_only_new_files(): void {
+		$source = $this->manifest( 'source' );
+		$target = $this->manifest( 'target' );
+		$source->add( 'nuevo.jpg', 5, md5( 'nuevo' ) );
+		$source->add( 'cambiado.jpg', 3, md5( 'xyz' ) );
+		$target->add( 'cambiado.jpg', 3, md5( 'abc' ) );
+		$target->add( 'sobra.jpg', 4, md5( 'sobr' ) );
+		$source->close();
+		$target->close();
+
+		$send  = $this->manifest( 'send' );
+		$stats = Diff::compute( $source, $target, $send, null, true );
+
+		$this->assertSame( array( 'nuevo.jpg' ), array_keys( $this->read( $send ) ), 'a file that exists here with other content is left alone' );
+		$this->assertSame( array( 1, 5, 0 ), array( $stats['send'], $stats['bytes'], $stats['delete'] ) );
+		$this->assertSame( array( 1, 1, 1 ), array( $stats['new'], $stats['changed'], $stats['extra'] ), 'the comparison is counted in full either way' );
 	}
 }

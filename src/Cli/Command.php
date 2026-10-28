@@ -190,6 +190,9 @@ final class Command {
 	 * [--delete]
 	 * : Delete destination files that don't exist on the source (kept in a backup for 7 days).
 	 *
+	 * [--only-new]
+	 * : Transfer only files the destination does not have; files it has with other content are left alone.
+	 *
 	 * [--files-only]
 	 * : Files only, no database.
 	 *
@@ -251,6 +254,9 @@ final class Command {
 	 *
 	 * [--delete]
 	 * : Delete destination files that don't exist on the source (kept in a backup for 7 days).
+	 *
+	 * [--only-new]
+	 * : Transfer only files the destination does not have; files it has with other content are left alone.
 	 *
 	 * [--files-only]
 	 * : Files only, no database.
@@ -335,6 +341,7 @@ final class Command {
 		$input['connection']   = $url . ' ' . $key;
 		$input['files']        = $this->roots( $assoc );
 		$input['delete_files'] = (bool) \WP_CLI\Utils\get_flag_value( $assoc, 'delete', false );
+		$input['only_new']     = (bool) \WP_CLI\Utils\get_flag_value( $assoc, 'only-new', false );
 		$input['database']     = ! \WP_CLI\Utils\get_flag_value( $assoc, 'files-only', false );
 		$job                   = $this->run( $intent, $input );
 		\WP_CLI::success(
@@ -419,9 +426,15 @@ final class Command {
 		} catch ( \Exception $e ) {
 			\WP_CLI::error( $e->getMessage() );
 		}
-		$bar  = \WP_CLI\Utils\make_progress_bar( 'Siteferry', 100 );
-		$seen = 0;
-		while ( Runner::is_open( $job ) ) {
+		$bar     = \WP_CLI\Utils\make_progress_bar( 'Siteferry', 100 );
+		$seen    = 0;
+		$retries = 0;
+		while ( Runner::is_open( $job ) || ( 'paused' === $job['status'] && $retries < 5 ) ) {
+			if ( 'paused' === $job['status'] ) {
+				++$retries;
+				\WP_CLI::warning( sprintf( '%s Retrying in 30 s (%d of 5).', $job['error'], $retries ) );
+				sleep( 30 );
+			}
 			$job     = Plugin::run_step( $job, 10 );
 			$percent = Runner::percent( $job );
 			$bar->tick( $percent - $seen );
