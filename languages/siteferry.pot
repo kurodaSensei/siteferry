@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-28T16:58:28+00:00\n"
+"POT-Creation-Date: 2026-10-28T17:14:29+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: siteferry\n"
@@ -319,7 +319,7 @@ msgstr ""
 
 #: src/Admin/Page.php:234
 #: src/Plugin.php:162
-#: assets/siteferry.js:660
+#: assets/siteferry.js:663
 msgid "There is nothing to undo."
 msgstr ""
 
@@ -364,51 +364,51 @@ msgid "Verify the HTTPS certificate when connecting to other sites (turn off onl
 msgstr ""
 
 #: src/Admin/Page.php:302
-#: assets/siteferry.js:679
+#: assets/siteferry.js:682
 msgid "pull"
 msgstr ""
 
 #: src/Admin/Page.php:303
-#: assets/siteferry.js:680
+#: assets/siteferry.js:683
 msgid "file pull"
 msgstr ""
 
 #: src/Admin/Page.php:304
-#: assets/siteferry.js:681
+#: assets/siteferry.js:684
 msgid "push"
 msgstr ""
 
 #: src/Admin/Page.php:305
-#: assets/siteferry.js:682
+#: assets/siteferry.js:685
 msgid "code push"
 msgstr ""
 
 #. translators: %s: list of allowed operations
 #: src/Admin/Page.php:309
-#: assets/siteferry.js:688
+#: assets/siteferry.js:691
 #, php-format,js-format
 msgid "This site accepts: %s"
 msgstr ""
 
 #. translators: %s: list of allowed operations
 #: src/Admin/Page.php:309
-#: assets/siteferry.js:688
+#: assets/siteferry.js:691
 msgid "This site accepts no connections"
 msgstr ""
 
 #: src/Admin/Page.php:323
-#: assets/siteferry.js:656
+#: assets/siteferry.js:659
 msgid "database"
 msgstr ""
 
 #: src/Admin/Page.php:326
-#: assets/siteferry.js:656
+#: assets/siteferry.js:659
 msgid "files"
 msgstr ""
 
 #. translators: 1: operation, 2: date, 3: what gets restored
 #: src/Admin/Page.php:329
-#: assets/siteferry.js:658
+#: assets/siteferry.js:661
 #, php-format,js-format
 msgid "%1$s · %2$s · restores: %3$s."
 msgstr ""
@@ -660,58 +660,64 @@ msgstr ""
 msgid "%1$s of %2$s"
 msgstr ""
 
-#: assets/siteferry.js:473
-msgid "The site’s tables were not modified; “Cancel” cleans up the temporary data."
+#. translators: 1: folder, 2: files transferred, 3: files to transfer, 4: size transferred, 5: size to transfer
+#: assets/siteferry.js:464
+#, js-format
+msgid "%1$s: %2$s of %3$s files · %4$s of %5$s"
 msgstr ""
 
 #: assets/siteferry.js:476
+msgid "The site’s tables were not modified; “Cancel” cleans up the temporary data."
+msgstr ""
+
+#: assets/siteferry.js:479
 msgid "Your progress is kept: resume when the other site answers again."
 msgstr ""
 
-#: assets/siteferry.js:483
+#: assets/siteferry.js:486
 msgid "Done. If you were logged out, log in again with a user from the source site."
 msgstr ""
 
-#: assets/siteferry.js:496
+#: assets/siteferry.js:499
 msgid "Download the export"
 msgstr ""
 
-#: assets/siteferry.js:496
+#: assets/siteferry.js:499
 msgid "Download the backup"
 msgstr ""
 
-#: assets/siteferry.js:611
+#: assets/siteferry.js:614
 msgid "Unknown error."
 msgstr ""
 
-#: assets/siteferry.js:616
+#: assets/siteferry.js:619
 msgid "You can resume once it is fixed."
 msgstr ""
 
-#: assets/siteferry.js:636
+#: assets/siteferry.js:639
 msgid "Cancel the operation? Temporary tables and files will be deleted."
 msgstr ""
 
-#: assets/siteferry.js:664
+#: assets/siteferry.js:667
 msgid "The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone. Continue?"
 msgstr ""
 
-#: assets/siteferry.js:696
+#: assets/siteferry.js:699
 msgid "Saved."
 msgstr ""
 
-#: assets/siteferry.js:700
+#: assets/siteferry.js:703
 msgid "Could not save."
 msgstr ""
 
-#: assets/siteferry.js:710
+#: assets/siteferry.js:713
 msgid "Copied."
 msgstr ""
 
-#: assets/siteferry.js:713
+#: assets/siteferry.js:716
 msgid "Sites using the current key will no longer be able to connect. Regenerate?"
 msgstr ""
 
-#: assets/siteferry.js:718
+#: assets/siteferry.js:721
 msgid "New key generated."
 msgstr ""

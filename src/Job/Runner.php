@@ -179,6 +179,36 @@ final class Runner {
 	}
 
 	/**
+	 * How far the current file transfer is, for the UI; null when the job is not transferring files.
+	 *
+	 * @param array $job Job.
+	 * @return array{root: string, files: int, total: int, bytes: int, total_bytes: int}|null
+	 */
+	public static function transfer_progress( array $job ): ?array {
+		$step = $job['steps'][ $job['index'] ] ?? null;
+		if ( ! self::is_unfinished( $job ) || 'files_transfer' !== ( $step['type'] ?? null ) || ! isset( $job['file_stats'][ $step['root'] ] ) ) {
+			return null;
+		}
+		$stats = $job['file_stats'][ $step['root'] ];
+		return array(
+			'root'        => $step['root'],
+			'files'       => $stats['sent'],
+			'total'       => $stats['send'],
+			'bytes'       => min( $stats['bytes'], $stats['sent_bytes'] ?? 0 ),
+			'total_bytes' => $stats['bytes'],
+		);
+	}
+
+	/**
+	 * Size in megabytes for the log.
+	 *
+	 * @param int $bytes Bytes.
+	 */
+	private static function mb( int $bytes ): string {
+		return number_format( $bytes / 1048576, 1 ) . ' MB';
+	}
+
+	/**
 	 * Appends a line to the job log (the last 200 are kept).
 	 *
 	 * @param array  $job     Job.
@@ -231,7 +261,13 @@ final class Runner {
 				return true;
 
 			case 'files_transfer':
-				return 'pull' === $job['intent'] ? $this->files_pull( $job, $step, $budget ) : $this->files_push( $job, $step, $budget );
+				$done = 'pull' === $job['intent'] ? $this->files_pull( $job, $step, $budget ) : $this->files_push( $job, $step, $budget );
+				if ( $done ) {
+					$stats  = $job['file_stats'][ $step['root'] ];
+					$failed = $stats['failed'] ? ", {$stats['failed']} failed" : '';
+					self::log( $job, "Files ({$step['root']}): {$stats['sent']} transferred (" . self::mb( $stats['sent_bytes'] ?? 0 ) . "){$failed}." );
+				}
+				return $done;
 
 			case 'files_finalize':
 				$this->files_finalize( $job, $step['root'] );
@@ -1068,9 +1104,10 @@ final class Runner {
 			! empty( $job['options']['only_new'] )
 		);
 		$job['file_stats'][ $root ] = $stats + array(
-			'sent'    => 0,
-			'failed'  => 0,
-			'missing' => 0,
+			'sent'       => 0,
+			'sent_bytes' => 0,
+			'failed'     => 0,
+			'missing'    => 0,
 		);
 		foreach ( $job['steps'] as &$other ) {
 			if ( 'files_transfer' === $other['type'] && ( $other['root'] ?? null ) === $root ) {
@@ -1078,12 +1115,11 @@ final class Runner {
 			}
 		}
 		unset( $other );
-		$mb      = static fn( int $bytes ) => number_format( $bytes / 1048576, 1 ) . ' MB';
 		$deletes = $job['options']['delete_files'] ? ', ' . $stats['delete'] . ' to delete' : '';
 		if ( ! $again ) {
-			self::log( $job, "Files ($root): {$stats['new']} new ({$mb( $stats['new_bytes'] )}), {$stats['changed']} changed ({$mb( $stats['changed_bytes'] )}), {$stats['extra']} only on the destination." );
+			self::log( $job, "Files ($root): {$stats['new']} new (" . self::mb( $stats['new_bytes'] ) . "), {$stats['changed']} changed (" . self::mb( $stats['changed_bytes'] ) . "), {$stats['extra']} only on the destination." );
 		}
-		self::log( $job, "Files ($root): {$stats['send']} to send ({$mb( $stats['bytes'] )})$deletes." );
+		self::log( $job, "Files ($root): {$stats['send']} to send (" . self::mb( $stats['bytes'] ) . ")$deletes." );
 	}
 
 	/**
@@ -1256,10 +1292,11 @@ final class Runner {
 	 * @param int    $bytes   Content bytes of the package.
 	 */
 	private function record_files( array &$job, string $root, array $result, int $missing, int $bytes ): void {
-		$stats             = &$job['file_stats'][ $root ];
-		$stats['sent']    += count( (array) $result['done'] );
-		$stats['missing'] += $missing;
-		$job['step_rows'] += intdiv( $bytes, 65536 ) + count( (array) $result['done'] );
+		$stats               = &$job['file_stats'][ $root ];
+		$stats['sent']      += count( (array) $result['done'] );
+		$stats['sent_bytes'] = ( $stats['sent_bytes'] ?? 0 ) + $bytes; // Missing in jobs planned by earlier versions.
+		$stats['missing']   += $missing;
+		$job['step_rows']   += intdiv( $bytes, 65536 ) + count( (array) $result['done'] );
 		foreach ( (array) $result['failed'] as $file => $reason ) {
 			++$stats['failed'];
 			if ( $stats['failed'] <= 20 ) {

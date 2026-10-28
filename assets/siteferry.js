@@ -459,7 +459,10 @@
 		panel.dataset.state = job.status;
 		const open = job.status === 'pending' || job.status === 'running';
 		setPercent( job.percent );
-		$( 'siteferry-step' ).textContent = `${ STATUS[ job.status ] }${ open && job.step ? ` · ${ job.step }` : '' }`;
+		const t = open && job.transfer;
+		/* translators: 1: folder, 2: files transferred, 3: files to transfer, 4: size transferred, 5: size to transfer */
+		const detail = t ? sprintf( __( '%1$s: %2$s of %3$s files · %4$s of %5$s', 'siteferry' ), t.root, t.files.toLocaleString(), t.total.toLocaleString(), size( t.bytes ), size( t.total_bytes ) ) : job.step;
+		$( 'siteferry-step' ).textContent = `${ STATUS[ job.status ] }${ open && detail ? ` · ${ detail }` : '' }`;
 		$( 'siteferry-log' ).textContent = job.log.join( '\n' );
 		renderPhases( job.phases || [] );
 		renderReview( job );

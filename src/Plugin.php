@@ -268,6 +268,7 @@ final class Plugin {
 			'status'   => $job['status'],
 			'percent'  => Runner::percent( $job ),
 			'step'     => $step ? $step['label'] : null,
+			'transfer' => Runner::transfer_progress( $job ),
 			'rows'     => $job['rows'],
 			'error'    => $job['error'],
 			'warnings' => $job['warnings'],

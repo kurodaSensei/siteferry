@@ -216,7 +216,25 @@ final class RemoteFlowTest extends DbTestCase {
 			$this->with_files( $this->site( 'wpb_', self::NEW ), 'local' ),
 			new Schema( $local )
 		);
-		$job    = $this->run_job( $local, $job, $this->client( $server ) );
+		$runner = new Runner( $local, $this->client( $server ) );
+		for ( $i = 0; $i < 500 && Runner::is_open( $job ) && 'files_transfer' !== $job['steps'][ $job['index'] ]['type']; $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+		$this->assertSame(
+			array(
+				'root'        => 'uploads',
+				'files'       => 0,
+				'total'       => 3,
+				'bytes'       => 0,
+				'total_bytes' => 1024 * 1024 + 11,
+			),
+			Runner::transfer_progress( $job ),
+			'the UI can show how far the transfer is'
+		);
+		$job = $this->run_job( $local, $job, $this->client( $server ) );
+		$this->assertNull( Runner::transfer_progress( $job ) );
+		$this->assertContains( 'Files (uploads): 3 transferred (1.0 MB).', array_map( fn( $l ) => substr( $l, 9 ), $job['log'] ), 'each folder leaves a line in the log' );
+		$this->assertSame( 1024 * 1024 + 11, $job['file_stats']['uploads']['sent_bytes'] );
 
 		$this->assert_b_has_site_a( $local );
 		$this->assertSame( $this->tree( "$this->storage/remote/uploads" ), $this->tree( "$this->storage/local/uploads" ) );
