@@ -616,7 +616,9 @@
 			hidePanel();
 			return alert( text );
 		}
-		notice( 'error', text + ' ' + __( 'You can resume once it is fixed.', 'siteferry' ) );
+		// WordPress refuses the nonce once the session is gone, as happens when a pull or import replaces this site's users.
+		const sessionGone = err && err.code === 'rest_cookie_invalid_nonce';
+		notice( 'error', sessionGone ? __( 'Your session on this site ended, probably because its users were just replaced. Reload the page, log in (with a user from the source site if the database was replaced) and press “Resume”.', 'siteferry' ) : text + ' ' + __( 'You can resume once it is fixed.', 'siteferry' ) );
 		$( 'siteferry-resume' ).hidden = false;
 	}
 

@@ -248,6 +248,33 @@ final class RemoteFlowTest extends DbTestCase {
 		$this->assertSame( 3, $job['file_stats']['uploads']['sent'] );
 	}
 
+	public function test_pull_finishes_in_the_request_that_swaps_the_tables(): void {
+		$remote = $this->seeded( 'wpa_', self::OLD );
+		$local  = $this->site_b();
+		$this->with_files( array(), 'remote' );
+		$this->with_files( array(), 'local' );
+		$this->put( 'remote', 'uploads/foto.jpg', 'foto' );
+		$this->put( 'remote', 'plugins/mi-plugin/mi-plugin.php', '<?php // v2' );
+
+		$server   = $this->server( $remote, 'wpa_', self::OLD, array( 'allow_pull' => true, 'allow_pull_files' => true ) );
+		$job      = Planner::create(
+			'pull',
+			$this->remote_input( $server, array( 'files' => array( 'uploads', 'plugins' ) ) ),
+			$this->with_files( $this->site( 'wpb_', self::NEW ), 'local' ),
+			new Schema( $local )
+		);
+		$finalize = array_search( 'finalize', array_column( $job['steps'], 'type' ), true );
+		$this->assertLessThan( count( $job['steps'] ) - 1, $finalize, 'file steps come after the swap' );
+		$runner = new Runner( $local, $this->client( $server ) );
+		for ( $i = 0; $i < 500 && $job['index'] <= $finalize && Runner::is_open( $job ); $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+
+		// After the swap this site's users and sessions are the remote's: the next request may be refused.
+		$this->assertSame( 'done', $job['status'], (string) $job['error'] );
+		$this->assertSame( '<?php // v2', file_get_contents( "$this->storage/local/plugins/mi-plugin/mi-plugin.php" ) );
+	}
+
 	public function test_push_files_only_including_code(): void {
 		$local  = $this->seeded( 'wpa_', self::OLD );
 		$remote = $this->site_b();

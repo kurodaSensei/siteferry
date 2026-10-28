@@ -67,8 +67,9 @@ final class Runner {
 		}
 		$job['status'] = 'running';
 		try {
+			$swapped = false;
 			$this->db->in_migration_session(
-				function () use ( &$job, $budget ) {
+				function () use ( &$job, &$swapped, $budget ) {
 					while ( isset( $job['steps'][ $job['index'] ] ) ) {
 						if ( 'receive' === $job['steps'][ $job['index'] ]['type'] && empty( $job['received'] ) ) {
 							break; // Waiting for data from the other site.
@@ -77,13 +78,17 @@ final class Runner {
 							$job['status'] = 'review'; // Waiting for a person to choose what travels.
 							break;
 						}
+						$type = $job['steps'][ $job['index'] ]['type'];
 						if ( $this->run_step( $job, $job['steps'][ $job['index'] ], $budget ) ) {
+							$swapped = $swapped || 'finalize' === $type;
 							++$job['index'];
 							$job['cursor']      = null;
 							$job['step_rows']   = 0;
 							$job['step_writes'] = 0;
 						}
-						if ( $budget->exhausted() ) {
+						// Once the tables are swapped this site's users and sessions may be the other site's, so the
+						// next request could be refused: the last few steps run here regardless of the time budget.
+						if ( $budget->exhausted() && ! $swapped ) {
 							break;
 						}
 					}
