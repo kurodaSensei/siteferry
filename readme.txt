@@ -81,6 +81,10 @@ Not yet.
 
 The admin interface is translatable and ships with a Spanish (es_ES) translation. Progress logs and WP-CLI output are in English.
 
+= Does the admin page load fonts or scripts from other servers? =
+
+No. The admin page uses IBM Plex Sans, bundled in `assets/fonts` under the SIL Open Font License 1.1 (see `assets/fonts/OFL.txt`), and WordPress's own scripts.
+
 == Screenshots ==
 
 1. Tools → Siteferry: choose an operation, the replacements and the tables.
