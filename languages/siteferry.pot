@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Siteferry 0.5.0\n"
+"Project-Id-Version: Siteferry 0.6.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/siteferry\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-28T20:55:54+00:00\n"
+"POT-Creation-Date: 2026-10-28T21:32:27+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: siteferry\n"
@@ -34,13 +34,13 @@ msgid "Home"
 msgstr ""
 
 #: src/Admin/Page.php:68
-#: src/Admin/Page.php:455
+#: src/Admin/Page.php:467
 #: assets/siteferry.js:46
 msgid "Pull"
 msgstr ""
 
 #: src/Admin/Page.php:69
-#: src/Admin/Page.php:469
+#: src/Admin/Page.php:481
 #: assets/siteferry.js:47
 msgid "Push"
 msgstr ""
@@ -48,14 +48,15 @@ msgstr ""
 #: src/Admin/Page.php:70
 #: src/Admin/Page.php:113
 #: assets/siteferry.js:43
-#: assets/siteferry.js:209
+#: assets/siteferry.js:234
 msgid "Export"
 msgstr ""
 
 #: src/Admin/Page.php:71
 #: src/Admin/Page.php:114
 #: assets/siteferry.js:45
-#: assets/siteferry.js:210
+#: assets/siteferry.js:235
+#: assets/siteferry.js:415
 msgid "Import"
 msgstr ""
 
@@ -89,7 +90,7 @@ msgstr ""
 #: src/Admin/Page.php:100
 #: src/Admin/Page.php:106
 #: src/Admin/Page.php:120
-#: assets/siteferry.js:180
+#: assets/siteferry.js:205
 msgid "This site"
 msgstr ""
 
@@ -145,12 +146,13 @@ msgstr ""
 
 #: src/Admin/Page.php:137
 #: src/Plugin.php:162
-#: assets/siteferry.js:954
+#: assets/siteferry.js:1000
 msgid "There is nothing to undo."
 msgstr ""
 
 #: src/Admin/Page.php:138
 #: assets/siteferry.js:48
+#: assets/siteferry.js:1007
 msgid "Undo"
 msgstr ""
 
@@ -201,7 +203,7 @@ msgstr ""
 
 #. translators: %s: number of tables
 #: src/Admin/Page.php:180
-#: assets/siteferry.js:831
+#: assets/siteferry.js:871
 msgid "Database"
 msgstr ""
 
@@ -368,7 +370,7 @@ msgstr ""
 
 #. translators: %d: number of tables
 #: src/Admin/Page.php:267
-#: assets/siteferry.js:238
+#: assets/siteferry.js:263
 #, php-format,js-format
 msgid "Tables (%d)"
 msgstr ""
@@ -491,7 +493,7 @@ msgid "Continue"
 msgstr ""
 
 #: src/Admin/Page.php:357
-#: assets/siteferry.js:770
+#: assets/siteferry.js:810
 msgid "Phases"
 msgstr ""
 
@@ -528,6 +530,8 @@ msgid "Resume"
 msgstr ""
 
 #: src/Admin/Page.php:381
+#: src/Admin/Page.php:446
+#: assets/siteferry.js:80
 msgid "Cancel"
 msgstr ""
 
@@ -556,11 +560,12 @@ msgid "Copy"
 msgstr ""
 
 #: src/Admin/Page.php:401
-#: assets/siteferry.js:995
+#: assets/siteferry.js:1046
 msgid "Show key"
 msgstr ""
 
 #: src/Admin/Page.php:403
+#: assets/siteferry.js:1080
 msgid "Regenerate key"
 msgstr ""
 
@@ -600,105 +605,105 @@ msgstr ""
 msgid "Turn it off only for local development with self-signed certificates."
 msgstr ""
 
-#: src/Admin/Page.php:453
+#: src/Admin/Page.php:465
 msgid "Pull the database"
 msgstr ""
 
-#: src/Admin/Page.php:454
+#: src/Admin/Page.php:466
 msgid "Other sites can read this database."
 msgstr ""
 
-#: src/Admin/Page.php:456
-#: src/Admin/Page.php:463
+#: src/Admin/Page.php:468
+#: src/Admin/Page.php:475
 msgid "Read"
 msgstr ""
 
-#: src/Admin/Page.php:460
+#: src/Admin/Page.php:472
 msgid "Pull files"
 msgstr ""
 
-#: src/Admin/Page.php:461
+#: src/Admin/Page.php:473
 msgid "Other sites can read media, themes and plugins, including their code."
 msgstr ""
 
-#: src/Admin/Page.php:462
+#: src/Admin/Page.php:474
 msgid "File pull"
 msgstr ""
 
-#: src/Admin/Page.php:467
+#: src/Admin/Page.php:479
 msgid "Receive a database"
 msgstr ""
 
-#: src/Admin/Page.php:468
+#: src/Admin/Page.php:480
 msgid "Other sites can replace this database and its media."
 msgstr ""
 
-#: src/Admin/Page.php:470
+#: src/Admin/Page.php:482
 msgid "Write"
 msgstr ""
 
-#: src/Admin/Page.php:474
+#: src/Admin/Page.php:486
 msgid "Receive themes and plugins"
 msgstr ""
 
-#: src/Admin/Page.php:475
+#: src/Admin/Page.php:487
 msgid "Other sites can replace the code this site runs."
 msgstr ""
 
-#: src/Admin/Page.php:476
+#: src/Admin/Page.php:488
 msgid "Code push"
 msgstr ""
 
-#: src/Admin/Page.php:477
+#: src/Admin/Page.php:489
 msgid "Code"
 msgstr ""
 
-#: src/Admin/Page.php:572
-#: assets/siteferry.js:976
+#: src/Admin/Page.php:584
+#: assets/siteferry.js:1027
 msgid "pull"
 msgstr ""
 
-#: src/Admin/Page.php:573
-#: assets/siteferry.js:977
+#: src/Admin/Page.php:585
+#: assets/siteferry.js:1028
 msgid "file pull"
 msgstr ""
 
-#: src/Admin/Page.php:574
-#: assets/siteferry.js:978
+#: src/Admin/Page.php:586
+#: assets/siteferry.js:1029
 msgid "push"
 msgstr ""
 
-#: src/Admin/Page.php:575
-#: assets/siteferry.js:979
+#: src/Admin/Page.php:587
+#: assets/siteferry.js:1030
 msgid "code push"
 msgstr ""
 
 #. translators: %s: list of allowed operations
-#: src/Admin/Page.php:579
-#: assets/siteferry.js:985
+#: src/Admin/Page.php:591
+#: assets/siteferry.js:1036
 #, php-format,js-format
 msgid "This site accepts: %s"
 msgstr ""
 
 #. translators: %s: list of allowed operations
-#: src/Admin/Page.php:579
-#: assets/siteferry.js:985
+#: src/Admin/Page.php:591
+#: assets/siteferry.js:1036
 msgid "This site accepts no connections"
 msgstr ""
 
-#: src/Admin/Page.php:593
-#: assets/siteferry.js:950
+#: src/Admin/Page.php:605
+#: assets/siteferry.js:996
 msgid "database"
 msgstr ""
 
-#: src/Admin/Page.php:596
-#: assets/siteferry.js:950
+#: src/Admin/Page.php:608
+#: assets/siteferry.js:996
 msgid "files"
 msgstr ""
 
 #. translators: 1: operation, 2: date, 3: what gets restored
-#: src/Admin/Page.php:599
-#: assets/siteferry.js:952
+#: src/Admin/Page.php:611
+#: assets/siteferry.js:998
 #, php-format,js-format
 msgid "%1$s · %2$s · restores: %3$s."
 msgstr ""
@@ -797,8 +802,8 @@ msgid "Copy the database"
 msgstr ""
 
 #: assets/siteferry.js:54
-#: assets/siteferry.js:207
-#: assets/siteferry.js:208
+#: assets/siteferry.js:232
+#: assets/siteferry.js:233
 msgid "Compare files"
 msgstr ""
 
@@ -814,341 +819,394 @@ msgstr ""
 msgid "Clean up"
 msgstr ""
 
+#: assets/siteferry.js:77
+msgid "OK"
+msgstr ""
+
+#: assets/siteferry.js:90
+msgid "Before you start"
+msgstr ""
+
+#: assets/siteferry.js:91
+msgid "A backup of the current one is kept for 7 days."
+msgstr ""
+
 #. translators: 1: Siteferry version, 2: number of tables, 3: table prefix
-#: assets/siteferry.js:177
+#: assets/siteferry.js:202
 #, js-format
 msgid "Siteferry %1$s · %2$s tables · prefix %3$s"
 msgstr ""
 
-#: assets/siteferry.js:182
+#: assets/siteferry.js:207
 msgid "What you choose here is replaced on this site"
 msgstr ""
 
-#: assets/siteferry.js:182
+#: assets/siteferry.js:207
 msgid "What you choose here is replaced on that site"
 msgstr ""
 
 #. translators: 1: number of tables, 2: table prefix
-#: assets/siteferry.js:185
+#: assets/siteferry.js:210
 #, js-format
 msgid "%1$s tables from %2$s. The site address is replaced automatically."
 msgstr ""
 
-#: assets/siteferry.js:189
+#: assets/siteferry.js:214
 msgid "the other site"
 msgstr ""
 
 #. translators: %s: list of folders
-#: assets/siteferry.js:192
+#: assets/siteferry.js:217
 #, js-format
 msgid "files (%s)"
 msgstr ""
 
-#: assets/siteferry.js:193
+#: assets/siteferry.js:218
 msgid "the database"
 msgstr ""
 
-#: assets/siteferry.js:193
+#: assets/siteferry.js:218
 msgid "nothing yet"
 msgstr ""
 
 #. translators: 1: what gets replaced, 2: other site URL
-#: assets/siteferry.js:196
+#: assets/siteferry.js:221
 #, js-format
 msgid "Replaces %1$s on this site with the ones from %2$s."
 msgstr ""
 
 #. translators: 1: what gets replaced, 2: other site URL
-#: assets/siteferry.js:198
+#: assets/siteferry.js:223
 #, js-format
 msgid "Replaces %1$s on %2$s with the ones from this site."
 msgstr ""
 
-#: assets/siteferry.js:200
+#: assets/siteferry.js:225
 msgid "Downloads a .sfy package with the database and the files you chose."
 msgstr ""
 
-#: assets/siteferry.js:201
+#: assets/siteferry.js:226
 msgid "Downloads the database as a .sql.gz file."
 msgstr ""
 
-#: assets/siteferry.js:202
+#: assets/siteferry.js:227
 msgid "Replaces this site’s database with the one in the file."
 msgstr ""
 
-#: assets/siteferry.js:203
+#: assets/siteferry.js:228
 msgid "Changes text in this site’s database, including inside serialized data and JSON."
 msgstr ""
 
-#: assets/siteferry.js:207
+#: assets/siteferry.js:232
 msgid "Start pull"
 msgstr ""
 
-#: assets/siteferry.js:208
+#: assets/siteferry.js:233
 msgid "Start push"
 msgstr ""
 
-#: assets/siteferry.js:211
+#: assets/siteferry.js:236
+#: assets/siteferry.js:428
 msgid "Run search and replace"
 msgstr ""
 
-#: assets/siteferry.js:234
+#: assets/siteferry.js:259
 msgid "Connect to the remote site to see its tables."
 msgstr ""
 
-#: assets/siteferry.js:263
+#: assets/siteferry.js:288
 msgid "Connecting…"
 msgstr ""
 
-#: assets/siteferry.js:272
+#: assets/siteferry.js:297
 msgid "Could not connect."
 msgstr ""
 
-#: assets/siteferry.js:380
+#: assets/siteferry.js:405
 msgid "Enter at least one text to find."
 msgstr ""
 
-#: assets/siteferry.js:385
+#: assets/siteferry.js:410
 msgid "Choose the file to import."
 msgstr ""
 
-#: assets/siteferry.js:387
-msgid "This site’s database will be replaced with the one in the file. Continue?"
+#: assets/siteferry.js:413
+msgid "Replace this site’s database?"
 msgstr ""
 
-#: assets/siteferry.js:395
-msgid "This site’s data will be modified. Continue?"
+#: assets/siteferry.js:414
+msgid "This site’s database will be replaced with the one in the file."
 msgstr ""
 
-#: assets/siteferry.js:399
+#: assets/siteferry.js:426
+msgid "Change this site’s data?"
+msgstr ""
+
+#: assets/siteferry.js:427
+msgid "The texts you entered are replaced in this site’s database."
+msgstr ""
+
+#: assets/siteferry.js:434
 msgid "Paste the other site’s connection info."
 msgstr ""
 
-#: assets/siteferry.js:402
+#: assets/siteferry.js:437
 msgid "Choose the database, files, or both."
 msgstr ""
 
-#: assets/siteferry.js:406
+#: assets/siteferry.js:441
 msgid "The other site does not allow file pulls. Enable it there or clear the file checkboxes."
 msgstr ""
 
-#: assets/siteferry.js:409
+#: assets/siteferry.js:444
 msgid "The other site does not allow code pushes (themes and plugins). Enable it there or clear those checkboxes."
 msgstr ""
 
-#: assets/siteferry.js:411
-msgid "Continue?"
+#: assets/siteferry.js:446
+msgid "Nothing is transferred until you review the file comparison."
 msgstr ""
 
-#: assets/siteferry.js:428
+#: assets/siteferry.js:448
+msgid "Start the pull?"
+msgstr ""
+
+#: assets/siteferry.js:448
+msgid "Start the push?"
+msgstr ""
+
+#: assets/siteferry.js:468
 msgid "Uploading file…"
 msgstr ""
 
 #. translators: 1: bytes uploaded, 2: file size
-#: assets/siteferry.js:445
-#: assets/siteferry.js:570
+#: assets/siteferry.js:485
+#: assets/siteferry.js:610
 #, js-format
 msgid "%1$s of %2$s"
 msgstr ""
 
-#: assets/siteferry.js:564
+#: assets/siteferry.js:604
 msgid "Now"
 msgstr ""
 
 #. translators: 1: files transferred, 2: files to transfer
-#: assets/siteferry.js:568
+#: assets/siteferry.js:608
 #, js-format
 msgid "%1$s of %2$s files"
 msgstr ""
 
 #. translators: 1: size transferred, 2: size to transfer
-#: assets/siteferry.js:570
+#: assets/siteferry.js:610
 msgid "Data"
 msgstr ""
 
 #. translators: 1: speed in MB/s, 2: minutes left
-#: assets/siteferry.js:573
+#: assets/siteferry.js:613
 msgid "Speed"
 msgstr ""
 
-#: assets/siteferry.js:573
+#: assets/siteferry.js:613
 #, js-format
 msgid "%1$s MB/s · ~%2$s min left"
 msgstr ""
 
-#: assets/siteferry.js:573
+#: assets/siteferry.js:613
 msgid "Measuring…"
 msgstr ""
 
-#: assets/siteferry.js:597
+#: assets/siteferry.js:637
 msgid "The site’s tables were not modified; “Cancel” cleans up the temporary data."
 msgstr ""
 
-#: assets/siteferry.js:600
+#: assets/siteferry.js:640
 msgid "Your progress is kept: resume when the other site answers again."
 msgstr ""
 
-#: assets/siteferry.js:617
+#: assets/siteferry.js:657
 msgid "Download the export"
 msgstr ""
 
-#: assets/siteferry.js:617
+#: assets/siteferry.js:657
 msgid "Download the backup"
 msgstr ""
 
 #. translators: %s: number of tables
-#: assets/siteferry.js:648
-#: assets/siteferry.js:831
+#: assets/siteferry.js:688
+#: assets/siteferry.js:871
 #, js-format
 msgid "%s tables"
 msgstr ""
 
-#: assets/siteferry.js:721
+#: assets/siteferry.js:761
 msgid "Total"
 msgstr ""
 
 #. translators: 1: source site, 2: destination site
-#: assets/siteferry.js:727
+#: assets/siteferry.js:767
 #, js-format
 msgid "%1$s compared with %2$s. Nothing has moved yet."
 msgstr ""
 
 #. translators: 1: number of files, 2: size
-#: assets/siteferry.js:729
+#: assets/siteferry.js:769
 #, js-format
 msgid "%1$s files · %2$s"
 msgstr ""
 
-#: assets/siteferry.js:730
+#: assets/siteferry.js:770
 msgid "Changed files are overwritten."
 msgstr ""
 
-#: assets/siteferry.js:731
+#: assets/siteferry.js:771
 msgid "What the destination already has is left alone."
 msgstr ""
 
 #. translators: %s: number of files
-#: assets/siteferry.js:733
+#: assets/siteferry.js:773
 #, js-format
 msgid "Also delete the %s files that only the destination has"
 msgstr ""
 
 #. translators: %s: number of files
-#: assets/siteferry.js:743
+#: assets/siteferry.js:783
 #, js-format
 msgid "Transfer %s files"
 msgstr ""
 
-#: assets/siteferry.js:770
+#: assets/siteferry.js:810
 msgid "What it includes"
 msgstr ""
 
-#: assets/siteferry.js:770
+#: assets/siteferry.js:810
 msgid "What changed"
 msgstr ""
 
 #. translators: 1: this site, 2: the other site
-#: assets/siteferry.js:780
+#: assets/siteferry.js:820
 #, js-format
 msgid "%1$s is now a copy of %2$s"
 msgstr ""
 
 #. translators: %s: the other site
-#: assets/siteferry.js:782
+#: assets/siteferry.js:822
 #, js-format
 msgid "%s now has this site’s content"
 msgstr ""
 
-#: assets/siteferry.js:783
+#: assets/siteferry.js:823
 msgid "The export is ready"
 msgstr ""
 
-#: assets/siteferry.js:784
+#: assets/siteferry.js:824
 msgid "The import is finished"
 msgstr ""
 
-#: assets/siteferry.js:785
+#: assets/siteferry.js:825
 msgid "Search and replace is finished"
 msgstr ""
 
-#: assets/siteferry.js:786
+#: assets/siteferry.js:826
 msgid "The site is back as it was"
 msgstr ""
 
 #. translators: 1: time of day, 2: minutes
-#: assets/siteferry.js:792
+#: assets/siteferry.js:832
 #, js-format
 msgid "Finished at %1$s, in %2$s min."
 msgstr ""
 
-#: assets/siteferry.js:802
+#: assets/siteferry.js:842
 msgid "tables"
 msgstr ""
 
-#: assets/siteferry.js:805
+#: assets/siteferry.js:845
 msgid "files transferred"
 msgstr ""
 
-#: assets/siteferry.js:806
+#: assets/siteferry.js:846
 msgid "transferred"
 msgstr ""
 
-#: assets/siteferry.js:809
+#: assets/siteferry.js:849
 msgid "files moved to the backup"
 msgstr ""
 
 #. translators: %s: number of files
-#: assets/siteferry.js:835
+#: assets/siteferry.js:875
 #, js-format
 msgid "%s files transferred"
 msgstr ""
 
 #. translators: %s: number of files
-#: assets/siteferry.js:838
+#: assets/siteferry.js:878
 #, js-format
 msgid "%s moved to the backup"
 msgstr ""
 
-#: assets/siteferry.js:898
+#: assets/siteferry.js:938
 msgid "Unknown error."
 msgstr ""
 
-#: assets/siteferry.js:907
+#: assets/siteferry.js:943
+msgid "Something went wrong"
+msgstr ""
+
+#: assets/siteferry.js:947
 msgid "Your session on this site ended, probably because its users were just replaced. Reload the page, log in (with a user from the source site if the database was replaced) and press “Resume”."
 msgstr ""
 
-#: assets/siteferry.js:907
+#: assets/siteferry.js:947
 msgid "You can resume once it is fixed."
 msgstr ""
 
-#: assets/siteferry.js:927
-msgid "Cancel the operation? Temporary tables and files will be deleted."
+#: assets/siteferry.js:968
+msgid "Cancel the operation?"
 msgstr ""
 
-#: assets/siteferry.js:958
-msgid "The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone. Continue?"
+#: assets/siteferry.js:969
+msgid "Temporary tables and files will be deleted."
 msgstr ""
 
-#: assets/siteferry.js:995
+#: assets/siteferry.js:970
+msgid "Cancel the operation"
+msgstr ""
+
+#: assets/siteferry.js:971
+msgid "Keep going"
+msgstr ""
+
+#: assets/siteferry.js:1005
+msgid "Undo the last operation?"
+msgstr ""
+
+#: assets/siteferry.js:1006
+msgid "The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone."
+msgstr ""
+
+#: assets/siteferry.js:1046
 msgid "Hide key"
 msgstr ""
 
-#: assets/siteferry.js:1007
+#: assets/siteferry.js:1058
 msgid "Saved."
 msgstr ""
 
-#: assets/siteferry.js:1011
+#: assets/siteferry.js:1062
 msgid "Could not save."
 msgstr ""
 
-#: assets/siteferry.js:1017
+#: assets/siteferry.js:1068
 msgid "Copied."
 msgstr ""
 
-#: assets/siteferry.js:1026
-msgid "Sites using the current key will no longer be able to connect. Regenerate?"
+#: assets/siteferry.js:1078
+msgid "Regenerate the key?"
 msgstr ""
 
-#: assets/siteferry.js:1032
+#: assets/siteferry.js:1079
+msgid "Sites using the current key will no longer be able to connect."
+msgstr ""
+
+#: assets/siteferry.js:1088
 msgid "New key generated."
 msgstr ""

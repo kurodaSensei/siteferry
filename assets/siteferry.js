@@ -65,6 +65,31 @@
 	};
 	const UNFINISHED = [ 'pending', 'running', 'review', 'paused' ];
 
+	// --- Dialogs: the page's own, in place of the browser's alert() and confirm() ---
+
+	const dialog = $( 'siteferry-dialog' );
+	// Resolves true when the person confirms. tone: "danger" for what is hard to take back, "info" for a message.
+	function ask( { title, text, ok, cancel, tone } ) {
+		const okButton = $( 'siteferry-dialog-ok' );
+		const cancelButton = $( 'siteferry-dialog-cancel' );
+		$( 'siteferry-dialog-title' ).textContent = title;
+		$( 'siteferry-dialog-text' ).textContent = text;
+		okButton.textContent = ok || __( 'OK', 'siteferry' );
+		okButton.classList.toggle( 'sf-danger', tone === 'danger' );
+		okButton.classList.toggle( 'button-primary', tone !== 'danger' );
+		cancelButton.textContent = cancel || __( 'Cancel', 'siteferry' );
+		cancelButton.hidden = tone === 'info';
+		dialog.dataset.tone = tone || '';
+		dialog.returnValue = '';
+		dialog.showModal();
+		// When the action is risky, the safe choice has the focus.
+		( tone === 'danger' ? cancelButton : okButton ).focus();
+		return new Promise( ( resolve ) => dialog.addEventListener( 'close', () => resolve( dialog.returnValue === 'ok' ), { once: true } ) );
+	}
+	const tell = ( title, text ) => ask( { title, text, tone: 'info' } );
+	const BEFORE = __( 'Before you start', 'siteferry' );
+	const backupNote = ( body ) => ( body.backup ? ` ${ __( 'A backup of the current one is kept for 7 days.', 'siteferry' ) }` : '' );
+
 	// --- Screens ------------------------------------------------------------
 
 	const tabs = [ ...document.querySelectorAll( '.sf-tab' ) ];
@@ -377,14 +402,19 @@
 		const body = payload();
 
 		if ( body.intent === 'replace' && ! body.pairs.length ) {
-			return alert( __( 'Enter at least one text to find.', 'siteferry' ) );
+			return tell( BEFORE, __( 'Enter at least one text to find.', 'siteferry' ) );
 		}
 		if ( body.intent === 'import' ) {
 			const file = fileInput.files[ 0 ];
 			if ( ! file ) {
-				return alert( __( 'Choose the file to import.', 'siteferry' ) );
+				return tell( BEFORE, __( 'Choose the file to import.', 'siteferry' ) );
 			}
-			if ( ! confirm( __( 'This site’s database will be replaced with the one in the file. Continue?', 'siteferry' ) ) ) {
+			if ( ! await ask( {
+				title: __( 'Replace this site’s database?', 'siteferry' ),
+				text: __( 'This site’s database will be replaced with the one in the file.', 'siteferry' ) + backupNote( body ),
+				ok: __( 'Import', 'siteferry' ),
+				tone: 'danger',
+			} ) ) {
 				return;
 			}
 			try {
@@ -392,23 +422,33 @@
 			} catch ( err ) {
 				return showError( err );
 			}
-		} else if ( body.intent === 'replace' && ! confirm( __( 'This site’s data will be modified. Continue?', 'siteferry' ) ) ) {
+		} else if ( body.intent === 'replace' && ! await ask( {
+			title: __( 'Change this site’s data?', 'siteferry' ),
+			text: __( 'The texts you entered are replaced in this site’s database.', 'siteferry' ) + backupNote( body ),
+			ok: __( 'Run search and replace', 'siteferry' ),
+			tone: 'danger',
+		} ) ) {
 			return;
 		} else if ( body.intent === 'pull' || body.intent === 'push' ) {
 			if ( ! body.connection ) {
-				return alert( __( 'Paste the other site’s connection info.', 'siteferry' ) );
+				return tell( BEFORE, __( 'Paste the other site’s connection info.', 'siteferry' ) );
 			}
 			if ( ! body.database && ! body.files.length ) {
-				return alert( __( 'Choose the database, files, or both.', 'siteferry' ) );
+				return tell( BEFORE, __( 'Choose the database, files, or both.', 'siteferry' ) );
 			}
 			const code = body.files.filter( ( f ) => f !== 'uploads' );
 			if ( body.intent === 'pull' && body.files.length && remote && ! remote.allow_pull_files ) {
-				return alert( __( 'The other site does not allow file pulls. Enable it there or clear the file checkboxes.', 'siteferry' ) );
+				return tell( BEFORE, __( 'The other site does not allow file pulls. Enable it there or clear the file checkboxes.', 'siteferry' ) );
 			}
 			if ( body.intent === 'push' && code.length && remote && ! remote.allow_push_code ) {
-				return alert( __( 'The other site does not allow code pushes (themes and plugins). Enable it there or clear those checkboxes.', 'siteferry' ) );
+				return tell( BEFORE, __( 'The other site does not allow code pushes (themes and plugins). Enable it there or clear those checkboxes.', 'siteferry' ) );
 			}
-			if ( ! confirm( `${ $( 'siteferry-summary' ).textContent } ${ __( 'Continue?', 'siteferry' ) }` ) ) {
+			const later = body.files.length && body.review ? ` ${ __( 'Nothing is transferred until you review the file comparison.', 'siteferry' ) }` : '';
+			if ( ! await ask( {
+				title: body.intent === 'pull' ? __( 'Start the pull?', 'siteferry' ) : __( 'Start the push?', 'siteferry' ),
+				text: $( 'siteferry-summary' ).textContent + later,
+				ok: $( 'siteferry-run' ).textContent,
+			} ) ) {
 				return;
 			}
 		}
@@ -900,7 +940,7 @@
 			if ( ! lastJob || ! UNFINISHED.includes( lastJob.status ) ) {
 				selectTab( tab );
 			}
-			return alert( text );
+			return tell( __( 'Something went wrong', 'siteferry' ), text );
 		}
 		// WordPress refuses the nonce once the session is gone, as happens when a pull or import replaces this site's users.
 		const sessionGone = err && err.code === 'rest_cookie_invalid_nonce';
@@ -924,7 +964,13 @@
 		}
 	} );
 	$( 'siteferry-cancel' ).addEventListener( 'click', async () => {
-		if ( ! confirm( __( 'Cancel the operation? Temporary tables and files will be deleted.', 'siteferry' ) ) ) {
+		if ( ! await ask( {
+			title: __( 'Cancel the operation?', 'siteferry' ),
+			text: __( 'Temporary tables and files will be deleted.', 'siteferry' ),
+			ok: __( 'Cancel the operation', 'siteferry' ),
+			cancel: __( 'Keep going', 'siteferry' ),
+			tone: 'danger',
+		} ) ) {
 			return;
 		}
 		running = false;
@@ -955,7 +1001,12 @@
 		}
 	}
 	const undo = async () => {
-		if ( ! confirm( __( 'The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone. Continue?', 'siteferry' ) ) ) {
+		if ( ! await ask( {
+			title: __( 'Undo the last operation?', 'siteferry' ),
+			text: __( 'The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone.', 'siteferry' ),
+			ok: __( 'Undo', 'siteferry' ),
+			tone: 'danger',
+		} ) ) {
 			return;
 		}
 		try {
@@ -1023,7 +1074,12 @@
 		}
 	} );
 	$( 'siteferry-regenerate' ).addEventListener( 'click', async () => {
-		if ( ! confirm( __( 'Sites using the current key will no longer be able to connect. Regenerate?', 'siteferry' ) ) ) {
+		if ( ! await ask( {
+			title: __( 'Regenerate the key?', 'siteferry' ),
+			text: __( 'Sites using the current key will no longer be able to connect.', 'siteferry' ),
+			ok: __( 'Regenerate key', 'siteferry' ),
+			tone: 'danger',
+		} ) ) {
 			return;
 		}
 		const res = await api( { path: `${ NS }/settings/key`, method: 'POST' } );

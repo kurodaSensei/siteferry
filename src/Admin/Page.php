@@ -437,6 +437,18 @@ final class Page {
 				<p id="siteferry-settings-status" class="sf-help" aria-live="polite"></p>
 			</section>
 
+			<dialog class="sf-dialog" id="siteferry-dialog" aria-labelledby="siteferry-dialog-title" aria-describedby="siteferry-dialog-text">
+				<form method="dialog">
+					<span class="sf-dialog-icon" aria-hidden="true"><?php self::icon( 'M12 8v5M12 16.5v.5M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17z' ); ?></span>
+					<h2 id="siteferry-dialog-title"></h2>
+					<p id="siteferry-dialog-text"></p>
+					<p class="sf-row sf-dialog-actions">
+						<button type="submit" class="button" value="cancel" id="siteferry-dialog-cancel"><?php esc_html_e( 'Cancel', 'siteferry' ); ?></button>
+						<button type="submit" class="button button-primary" value="ok" id="siteferry-dialog-ok"></button>
+					</p>
+				</form>
+			</dialog>
+
 			<button type="button" class="sf-float" id="siteferry-float" hidden><span class="sf-float-dot" aria-hidden="true"></span><span id="siteferry-float-text"></span></button>
 		</div>
 		<?php
