@@ -19,6 +19,9 @@ final class Signer {
 	/** HTTP header carrying the signature. */
 	public const HEADER = 'X-Siteferry-Signature';
 
+	/** Error code of a request rejected for its time; the response carries the receiver's clock. */
+	public const CLOCK_CODE = 'siteferry_clock';
+
 	/**
 	 * Signs a body.
 	 *
@@ -46,18 +49,35 @@ final class Signer {
 	 * @param string      $op     Operation.
 	 * @param array       $args   Arguments.
 	 * @param string|null $binary Binary that travels after the line.
+	 * @param int         $offset Seconds the receiver's clock is ahead of this one (see clock_offset()).
 	 */
-	public static function message( string $op, array $args, ?string $binary = null ): string {
+	public static function message( string $op, array $args, ?string $binary = null, int $offset = 0 ): string {
 		$message = array(
 			'op'    => $op,
 			'args'  => $args,
-			'ts'    => time(),
+			'ts'    => time() + $offset,
 			'nonce' => bin2hex( random_bytes( 16 ) ),
 		);
 		if ( null !== $binary ) {
 			$message['sha256'] = hash( 'sha256', $binary );
 		}
 		return (string) json_encode( $message, JSON_UNESCAPED_SLASHES ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode
+	}
+
+	/**
+	 * How far ahead of this clock the other site's clock is, when it rejected a request for its
+	 * time. A paused VM (Docker Desktop on a Mac that slept) wakes with its clock behind; the
+	 * rejection happens before the operation runs, so the request can be signed again with the
+	 * receiver's time. The response is signed, so only a holder of the key can move the clock, and
+	 * the receiver still checks the time against its own clock and never accepts a nonce twice.
+	 *
+	 * @param array $response Signed response data.
+	 */
+	public static function clock_offset( array $response ): ?int {
+		if ( ! empty( $response['ok'] ) || self::CLOCK_CODE !== ( $response['code'] ?? null ) || ! is_int( $response['time'] ?? null ) ) {
+			return null;
+		}
+		return $response['time'] - time();
 	}
 
 	/**

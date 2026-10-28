@@ -44,8 +44,9 @@ final class Client {
 	 */
 	public function call( string $op, array $args = array(), ?string $binary = null ): array {
 		$attempts = 'push_begin' === $op ? 1 : 3;
+		$offset   = null;
 		for ( $attempt = 1; ; $attempt++ ) {
-			$message  = Signer::message( $op, $args, $binary );
+			$message  = Signer::message( $op, $args, $binary, $offset ?? 0 );
 			$response = wp_remote_post(
 				$this->url . '/?rest_route=/siteferry/v1/remote',
 				array(
@@ -83,6 +84,12 @@ final class Client {
 			}
 			if ( null !== $package && hash( 'sha256', $package ) !== ( $data['sha256'] ?? null ) ) {
 				throw new \RuntimeException( 'The package from the remote site arrived corrupted.' );
+			}
+			$skew = Signer::clock_offset( (array) $data );
+			if ( null !== $skew && null === $offset ) {
+				// ponytail: the offset lives for one call; keep it on the job if a clock stays off for a whole migration.
+				$offset = $skew;
+				continue; // Rejected before the operation ran: safe to repeat once, even push_begin.
 			}
 			if ( empty( $data['ok'] ) ) {
 				throw new \RuntimeException( 'Remote site: ' . ( $data['error'] ?? 'unknown error' ) );

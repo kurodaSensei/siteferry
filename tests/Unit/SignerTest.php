@@ -33,6 +33,26 @@ final class SignerTest extends TestCase {
 		$this->assertEqualsWithDelta( time(), $a['ts'], 2 );
 	}
 
+	public function test_a_clock_rejection_tells_how_far_off_this_clock_is(): void {
+		// The other site rejected the request for its time and sent its own clock: 10 minutes ahead.
+		$offset = Signer::clock_offset(
+			array(
+				'ok'   => false,
+				'code' => Signer::CLOCK_CODE,
+				'time' => time() + 600,
+			)
+		);
+		$this->assertEqualsWithDelta( 600, $offset, 2 );
+
+		// The next message is stamped with the other site's time.
+		$this->assertEqualsWithDelta( time() + 600, json_decode( Signer::message( 'hello', array(), null, $offset ), true )['ts'], 2 );
+
+		// Any other answer leaves the clock alone.
+		$this->assertNull( Signer::clock_offset( array( 'ok' => false, 'error' => 'Invalid signature.' ) ) );
+		$this->assertNull( Signer::clock_offset( array( 'ok' => false, 'code' => Signer::CLOCK_CODE ) ) );
+		$this->assertNull( Signer::clock_offset( array( 'ok' => true, 'code' => Signer::CLOCK_CODE, 'time' => time() + 600 ) ) );
+	}
+
 	public function test_parse_connection(): void {
 		$this->assertSame(
 			array(

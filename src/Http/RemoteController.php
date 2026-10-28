@@ -71,7 +71,9 @@ final class RemoteController {
 			self::respond(
 				array(
 					'ok'    => false,
+					'code'  => Signer::CLOCK_CODE,
 					'error' => 'The two servers’ clocks differ by more than 5 minutes.',
+					'time'  => time(),
 				),
 				401,
 				$key,
