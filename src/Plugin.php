@@ -269,6 +269,20 @@ final class Plugin {
 			'percent'  => Runner::percent( $job ),
 			'step'     => $step ? $step['label'] : null,
 			'transfer' => Runner::transfer_progress( $job ),
+			'folders'  => array_map(
+				static fn( array $s ) => array(
+					'sent'       => $s['sent'],
+					'send'       => $s['send'],
+					'sent_bytes' => min( $s['bytes'], $s['sent_bytes'] ?? 0 ),
+					'bytes'      => $s['bytes'],
+					'delete'     => $s['delete'],
+				),
+				$job['file_stats']
+			),
+			'tables'   => count( array_filter( $job['steps'], static fn( array $s ) => 'copy' === $s['type'] && 'backup' !== ( $s['file'] ?? '' ) ) ),
+			'created'  => $job['created'],
+			'updated'  => $job['heartbeat'],
+			'deletes'  => ! empty( $job['options']['delete_files'] ),
 			'rows'     => $job['rows'],
 			'error'    => $job['error'],
 			'warnings' => $job['warnings'],
