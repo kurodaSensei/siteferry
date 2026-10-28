@@ -10,8 +10,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-28T15:31:33+00:00\n"
-"PO-Revision-Date: 2026-10-28 15:31+0000\n"
+"POT-Creation-Date: 2026-10-28T16:58:28+00:00\n"
+"PO-Revision-Date: 2026-10-28 16:58+0000\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: siteferry\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -63,7 +63,7 @@ msgid "Siteferry operations"
 msgstr "Operaciones de Siteferry"
 
 #: src/Admin/Page.php:85
-#: src/Admin/Page.php:232
+#: src/Admin/Page.php:235
 #: assets/siteferry.js:42
 msgid "Undo"
 msgstr "Deshacer"
@@ -85,7 +85,7 @@ msgid "Connect"
 msgstr "Conectar"
 
 #: src/Admin/Page.php:104
-#: src/Admin/Page.php:211
+#: src/Admin/Page.php:215
 msgid "What to transfer"
 msgstr "Qué transferir"
 
@@ -231,213 +231,220 @@ msgstr "Reemplazar también en guid (normalmente no se debe)"
 msgid "Tables (%d)"
 msgstr "Tablas (%d)"
 
-#. translators: %d: number of tables
-#: src/Admin/Page.php:173
+#: src/Admin/Page.php:174
+msgid "Filter tables"
+msgstr "Filtrar tablas"
+
+#: src/Admin/Page.php:175
+msgid "Filter tables…"
+msgstr "Filtrar tablas…"
+
+#: src/Admin/Page.php:176
 msgid "Select / deselect all"
 msgstr "Marcar / desmarcar todas"
 
-#: src/Admin/Page.php:184
+#: src/Admin/Page.php:188
 msgid "Summary"
 msgstr "Resumen"
 
-#: src/Admin/Page.php:187
+#: src/Admin/Page.php:191
 msgid "Live tables change only at the very end"
 msgstr "Las tablas vivas solo cambian al final"
 
-#: src/Admin/Page.php:188
+#: src/Admin/Page.php:192
 msgid "Undo stays available for 7 days"
 msgstr "Puedes deshacer durante 7 días"
 
-#: src/Admin/Page.php:190
+#: src/Admin/Page.php:194
 msgid "Back up the destination database first (kept for 7 days)"
 msgstr "Crear un backup de la base de datos de destino antes (se conserva 7 días)"
 
-#: src/Admin/Page.php:191
+#: src/Admin/Page.php:195
 msgid "Start"
 msgstr "Iniciar"
 
-#: src/Admin/Page.php:205
+#: src/Admin/Page.php:209
 msgid "Review the file comparison"
 msgstr "Revisa la comparación de archivos"
 
-#: src/Admin/Page.php:207
+#: src/Admin/Page.php:211
 msgid "Folder"
 msgstr "Carpeta"
 
-#: src/Admin/Page.php:207
+#: src/Admin/Page.php:211
 msgid "New"
 msgstr "Nuevos"
 
-#: src/Admin/Page.php:207
+#: src/Admin/Page.php:211
 msgid "Changed"
 msgstr "Cambiados"
 
-#: src/Admin/Page.php:207
+#: src/Admin/Page.php:211
 msgid "Only on the destination"
 msgstr "Solo en el destino"
 
-#: src/Admin/Page.php:212
+#: src/Admin/Page.php:216
 msgid "New and changed files"
 msgstr "Archivos nuevos y cambiados"
 
-#: src/Admin/Page.php:213
+#: src/Admin/Page.php:217
 msgid "Only new files"
 msgstr "Solo archivos nuevos"
 
-#: src/Admin/Page.php:214
+#: src/Admin/Page.php:218
 msgid "Also delete the files that only the destination has (kept in a backup for 7 days)"
 msgstr "Borrar también los archivos que solo tiene el destino (se guardan en un backup 7 días)"
 
-#: src/Admin/Page.php:216
+#: src/Admin/Page.php:220
 msgid "Continue"
 msgstr "Continuar"
 
-#: src/Admin/Page.php:221
+#: src/Admin/Page.php:225
 msgid "Resume"
 msgstr "Continuar"
 
-#: src/Admin/Page.php:222
+#: src/Admin/Page.php:226
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: src/Admin/Page.php:223
+#: src/Admin/Page.php:227
 msgid "New operation"
 msgstr "Nueva operación"
 
-#: src/Admin/Page.php:225
+#: src/Admin/Page.php:229
 msgid "Log"
 msgstr "Registro"
 
-#: src/Admin/Page.php:230
+#: src/Admin/Page.php:233
 msgid "Undo the last operation"
 msgstr "Deshacer la última operación"
 
-#: src/Admin/Page.php:231
+#: src/Admin/Page.php:234
 #: src/Plugin.php:162
-#: assets/siteferry.js:638
+#: assets/siteferry.js:660
 msgid "There is nothing to undo."
 msgstr "No hay nada que deshacer."
 
-#: src/Admin/Page.php:236
+#: src/Admin/Page.php:239
 msgid "This site’s connection"
 msgstr "Conexión de este sitio"
 
-#: src/Admin/Page.php:237
+#: src/Admin/Page.php:240
 msgid "Paste this on the other site to pull from or push to this one. Anyone with the key can read or replace this database, depending on the permissions below: treat it like a password."
 msgstr "Pega esto en el otro sitio para hacer pull o push con este. Quien tenga la clave puede leer o reemplazar esta base de datos según los permisos de abajo: trátala como una contraseña."
 
-#: src/Admin/Page.php:240
+#: src/Admin/Page.php:243
 msgid "Copy"
 msgstr "Copiar"
 
-#: src/Admin/Page.php:241
+#: src/Admin/Page.php:244
 msgid "Regenerate key"
 msgstr "Regenerar clave"
 
-#: src/Admin/Page.php:244
+#: src/Admin/Page.php:247
 msgid "Permissions"
 msgstr "Permisos"
 
-#: src/Admin/Page.php:245
+#: src/Admin/Page.php:248
 msgid "Allow pull: other sites can read this database"
 msgstr "Permitir pull: otros sitios pueden leer esta base de datos"
 
-#: src/Admin/Page.php:246
+#: src/Admin/Page.php:249
 msgid "Allow file pull: other sites can read media, themes and plugins (including their code)"
 msgstr "Permitir pull de archivos: otros sitios pueden leer media, temas y plugins (incluido su código)"
 
-#: src/Admin/Page.php:247
+#: src/Admin/Page.php:250
 msgid "Allow push: other sites can replace this database"
 msgstr "Permitir push: otros sitios pueden reemplazar esta base de datos"
 
-#: src/Admin/Page.php:248
+#: src/Admin/Page.php:251
 msgid "Allow code push: other sites can replace this site’s themes and plugins"
 msgstr "Permitir push de código: otros sitios pueden reemplazar temas y plugins de este sitio"
 
-#: src/Admin/Page.php:249
+#: src/Admin/Page.php:252
 msgid "Verify the HTTPS certificate when connecting to other sites (turn off only for local development)"
 msgstr "Verificar el certificado HTTPS al conectarse a otros sitios (desactívalo solo en desarrollo local)"
 
-#: src/Admin/Page.php:299
-#: assets/siteferry.js:657
+#: src/Admin/Page.php:302
+#: assets/siteferry.js:679
 msgid "pull"
 msgstr "pull"
 
-#: src/Admin/Page.php:300
-#: assets/siteferry.js:658
+#: src/Admin/Page.php:303
+#: assets/siteferry.js:680
 msgid "file pull"
 msgstr "pull de archivos"
 
-#: src/Admin/Page.php:301
-#: assets/siteferry.js:659
+#: src/Admin/Page.php:304
+#: assets/siteferry.js:681
 msgid "push"
 msgstr "push"
 
-#: src/Admin/Page.php:302
-#: assets/siteferry.js:660
+#: src/Admin/Page.php:305
+#: assets/siteferry.js:682
 msgid "code push"
 msgstr "push de código"
 
 #. translators: %s: list of allowed operations
-#: src/Admin/Page.php:306
-#: assets/siteferry.js:665
+#: src/Admin/Page.php:309
+#: assets/siteferry.js:688
 #, php-format,js-format
 msgid "This site accepts: %s"
 msgstr "Este sitio acepta: %s"
 
 #. translators: %s: list of allowed operations
-#: src/Admin/Page.php:306
-#: assets/siteferry.js:665
+#: src/Admin/Page.php:309
+#: assets/siteferry.js:688
 msgid "This site accepts no connections"
 msgstr "Este sitio no acepta conexiones"
 
-#: src/Admin/Page.php:320
-#: assets/siteferry.js:634
+#: src/Admin/Page.php:323
+#: assets/siteferry.js:656
 msgid "database"
 msgstr "base de datos"
 
-#: src/Admin/Page.php:323
-#: assets/siteferry.js:634
+#: src/Admin/Page.php:326
+#: assets/siteferry.js:656
 msgid "files"
 msgstr "archivos"
 
 #. translators: 1: operation, 2: date, 3: what gets restored
-#: src/Admin/Page.php:326
-#: assets/siteferry.js:636
+#: src/Admin/Page.php:329
+#: assets/siteferry.js:658
 #, php-format,js-format
 msgid "%1$s · %2$s · restores: %3$s."
 msgstr "%1$s · %2$s · se restaura: %3$s."
 
-#: src/Http/RestController.php:94
+#: src/Http/RestController.php:96
 msgid "The uploaded file was not found."
 msgstr "No se encontró el archivo subido."
 
-#: src/Http/RestController.php:179
+#: src/Http/RestController.php:181
 msgid "Another step is in progress."
 msgstr "Otro paso está en curso."
 
-#: src/Http/RestController.php:200
-#: src/Http/RestController.php:224
+#: src/Http/RestController.php:202
+#: src/Http/RestController.php:226
 msgid "A step is in progress; try again."
 msgstr "Hay un paso en curso; inténtalo de nuevo."
 
-#: src/Http/RestController.php:251
+#: src/Http/RestController.php:253
 msgid "The file is not available."
 msgstr "El archivo no está disponible."
 
-#: src/Http/RestController.php:283
+#: src/Http/RestController.php:285
 msgid "Only .sql, .sql.gz or .sfy files are accepted."
 msgstr "Solo se aceptan archivos .sql, .sql.gz o .sfy."
 
-#: src/Http/RestController.php:286
+#: src/Http/RestController.php:288
 msgid "The file chunk did not arrive."
 msgstr "No llegó el trozo del archivo."
 
-#: src/Http/RestController.php:293
+#: src/Http/RestController.php:295
 msgid "The chunk is out of order."
 msgstr "El trozo no está en orden."
 
-#: src/Http/RestController.php:324
+#: src/Http/RestController.php:326
 msgid "That operation no longer exists."
 msgstr "Esa operación ya no existe."
 
@@ -609,114 +616,104 @@ msgstr "Conectado con %1$s · prefijo %2$s · %3$d tablas · permite %4$s · pul
 msgid "Could not connect."
 msgstr "No se pudo conectar."
 
-#: assets/siteferry.js:314
+#: assets/siteferry.js:319
 msgid "Enter at least one text to find."
 msgstr "Indica al menos un texto a buscar."
 
-#: assets/siteferry.js:319
+#: assets/siteferry.js:324
 msgid "Choose the file to import."
 msgstr "Elige el archivo a importar."
 
-#: assets/siteferry.js:321
+#: assets/siteferry.js:326
 msgid "This site’s database will be replaced with the one in the file. Continue?"
 msgstr "La base de datos de este sitio se reemplazará por la del archivo. ¿Continuar?"
 
-#: assets/siteferry.js:329
+#: assets/siteferry.js:334
 msgid "This site’s data will be modified. Continue?"
 msgstr "Se modificarán los datos de este sitio. ¿Continuar?"
 
-#: assets/siteferry.js:333
+#: assets/siteferry.js:338
 msgid "Paste the other site’s connection info."
 msgstr "Pega la información de conexión del otro sitio."
 
-#: assets/siteferry.js:336
+#: assets/siteferry.js:341
 msgid "Choose the database, files, or both."
 msgstr "Elige la base de datos, archivos o ambos."
 
-#: assets/siteferry.js:340
+#: assets/siteferry.js:345
 msgid "The other site does not allow file pulls. Enable it there or clear the file checkboxes."
 msgstr "El otro sitio no permite pull de archivos. Actívalo allá o quita las casillas de archivos."
 
-#: assets/siteferry.js:343
+#: assets/siteferry.js:348
 msgid "The other site does not allow code pushes (themes and plugins). Enable it there or clear those checkboxes."
 msgstr "El otro sitio no permite push de código (temas y plugins). Actívalo allá o quita esas casillas."
 
-#: assets/siteferry.js:345
+#: assets/siteferry.js:350
 msgid "Continue?"
 msgstr "¿Continuar?"
 
-#: assets/siteferry.js:361
+#: assets/siteferry.js:366
 msgid "Uploading file…"
 msgstr "Subiendo archivo…"
 
 #. translators: 1: bytes uploaded, 2: file size
-#: assets/siteferry.js:376
+#: assets/siteferry.js:383
 #, js-format
 msgid "%1$s of %2$s"
 msgstr "%1$s de %2$s"
 
-#: assets/siteferry.js:466
+#: assets/siteferry.js:473
 msgid "The site’s tables were not modified; “Cancel” cleans up the temporary data."
 msgstr "Las tablas del sitio no se modificaron; «Cancelar» limpia lo temporal."
 
-#: assets/siteferry.js:469
+#: assets/siteferry.js:476
 msgid "Your progress is kept: resume when the other site answers again."
 msgstr "Tu progreso se conserva: reanuda cuando el otro sitio vuelva a responder."
 
-#: assets/siteferry.js:476
+#: assets/siteferry.js:483
 msgid "Done. If you were logged out, log in again with a user from the source site."
 msgstr "Terminado. Si se cerró tu sesión, vuelve a iniciar sesión con un usuario del sitio de origen."
 
-#. translators: 1: file name, 2: file size
-#: assets/siteferry.js:486
-#, js-format
-msgid "Download (%1$s, %2$s)"
-msgstr "Descargar (%1$s, %2$s)"
+#: assets/siteferry.js:496
+msgid "Download the export"
+msgstr "Descargar la exportación"
 
-#. translators: 1: file name, 2: file size
-#: assets/siteferry.js:487
-#, js-format
-msgid "Download backup (%1$s, %2$s)"
-msgstr "Descargar backup (%1$s, %2$s)"
+#: assets/siteferry.js:496
+msgid "Download the backup"
+msgstr "Descargar el backup"
 
-#. translators: 1: number of files, 2: size
-#: assets/siteferry.js:522
-#, js-format
-msgid "%1$d · %2$s"
-msgstr "%1$d · %2$s"
-
-#: assets/siteferry.js:589
+#: assets/siteferry.js:611
 msgid "Unknown error."
 msgstr "Error desconocido."
 
-#: assets/siteferry.js:594
+#: assets/siteferry.js:616
 msgid "You can resume once it is fixed."
 msgstr "Puedes continuar cuando se resuelva."
 
-#: assets/siteferry.js:614
+#: assets/siteferry.js:636
 msgid "Cancel the operation? Temporary tables and files will be deleted."
 msgstr "¿Cancelar la operación? Se borran las tablas y archivos temporales."
 
-#: assets/siteferry.js:642
+#: assets/siteferry.js:664
 msgid "The site will be restored to its state before the last operation. Anything changed on this site since then is lost, and this cannot itself be undone. Continue?"
 msgstr "Se restaurará el estado anterior a la última operación. Lo cambiado después en este sitio se pierde y no se puede deshacer a su vez. ¿Continuar?"
 
-#: assets/siteferry.js:673
+#: assets/siteferry.js:696
 msgid "Saved."
 msgstr "Guardado."
 
-#: assets/siteferry.js:677
+#: assets/siteferry.js:700
 msgid "Could not save."
 msgstr "No se pudo guardar."
 
-#: assets/siteferry.js:687
+#: assets/siteferry.js:710
 msgid "Copied."
 msgstr "Copiado."
 
-#: assets/siteferry.js:690
+#: assets/siteferry.js:713
 msgid "Sites using the current key will no longer be able to connect. Regenerate?"
 msgstr "Los sitios que usan la clave actual dejarán de poder conectarse. ¿Regenerar?"
 
-#: assets/siteferry.js:695
+#: assets/siteferry.js:718
 msgid "New key generated."
 msgstr "Clave nueva generada."

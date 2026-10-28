@@ -221,13 +221,12 @@ final class Page {
 				</div>
 				<div id="siteferry-message"></div>
 				<div id="siteferry-files" class="sf-downloads"></div>
-				<div class="sf-row">
+				<div class="sf-row sf-actions-row">
 					<button type="button" class="button button-primary" id="siteferry-resume" hidden><?php esc_html_e( 'Resume', 'siteferry' ); ?></button>
 					<button type="button" class="button sf-danger" id="siteferry-cancel" hidden><?php esc_html_e( 'Cancel', 'siteferry' ); ?></button>
 					<button type="button" class="button" id="siteferry-new" hidden><?php esc_html_e( 'New operation', 'siteferry' ); ?></button>
-					<span class="sf-grow"></span>
-					<details class="sf-log"><summary><?php esc_html_e( 'Log', 'siteferry' ); ?></summary><pre id="siteferry-log"></pre></details>
 				</div>
+				<details class="sf-log"><summary><?php esc_html_e( 'Log', 'siteferry' ); ?></summary><pre id="siteferry-log"></pre></details>
 			</section>
 
 			<section id="siteferry-undo" class="sf-card sf-panel" role="tabpanel" aria-labelledby="siteferry-tab-undo" hidden>

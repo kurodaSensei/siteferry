@@ -766,18 +766,33 @@
 	font-variant-numeric: tabular-nums;
 }
 
+.sf-actions-row:not(:has(> :not([hidden]))) {
+	display: none;
+}
+
+.sf-log {
+	border-top: 1px solid var(--sf-line);
+	padding-top: 14px;
+}
+
 .sf-log summary {
 	color: var(--sf-ink);
 	cursor: pointer;
+	font-weight: 600;
 }
 
 #siteferry-log {
 	background: #f6f7f7;
-	max-height: 320px;
-	min-width: min(560px, 80vw);
+	border-radius: 6px;
+	box-sizing: border-box;
+	font-size: 12px;
+	line-height: 1.6;
+	margin: 10px 0 0;
+	max-height: 360px;
 	overflow: auto;
-	padding: 8px;
+	padding: 12px 14px;
 	white-space: pre-wrap;
+	width: 100%;
 }
 
 /* Things that appear slide in once. */

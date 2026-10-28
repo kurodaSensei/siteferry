@@ -1055,10 +1055,11 @@ final class Runner {
 	/**
 	 * Compares the source and destination of a folder; leaves the send and delete lists.
 	 *
-	 * @param array  $job  Job.
-	 * @param string $root Folder.
+	 * @param array  $job    Job.
+	 * @param string $root   Folder.
+	 * @param bool   $again  Worked out again after a review: the comparison is already in the log.
 	 */
-	private function files_diff( array &$job, string $root ): void {
+	private function files_diff( array &$job, string $root, bool $again = false ): void {
 		$stats                      = Diff::compute(
 			$this->file_list( $job, $root, 'source' ),
 			$this->file_list( $job, $root, 'target' ),
@@ -1079,7 +1080,9 @@ final class Runner {
 		unset( $other );
 		$mb      = static fn( int $bytes ) => number_format( $bytes / 1048576, 1 ) . ' MB';
 		$deletes = $job['options']['delete_files'] ? ', ' . $stats['delete'] . ' to delete' : '';
-		self::log( $job, "Files ($root): {$stats['new']} new ({$mb( $stats['new_bytes'] )}), {$stats['changed']} changed ({$mb( $stats['changed_bytes'] )}), {$stats['extra']} only on the destination." );
+		if ( ! $again ) {
+			self::log( $job, "Files ($root): {$stats['new']} new ({$mb( $stats['new_bytes'] )}), {$stats['changed']} changed ({$mb( $stats['changed_bytes'] )}), {$stats['extra']} only on the destination." );
+		}
 		self::log( $job, "Files ($root): {$stats['send']} to send ({$mb( $stats['bytes'] )})$deletes." );
 	}
 
@@ -1101,7 +1104,7 @@ final class Runner {
 		$job['options']['delete_files'] = $delete_files;
 		foreach ( array_slice( $job['steps'], 0, $job['index'] ) as $done ) {
 			if ( 'files_diff' === $done['type'] ) {
-				$this->files_diff( $job, $done['root'] );
+				$this->files_diff( $job, $done['root'], true );
 			}
 		}
 		$job['reviewed'] = true;
