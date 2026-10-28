@@ -364,11 +364,13 @@
 
 	async function upload( file ) {
 		showPanel( __( 'Uploading file…', 'siteferry' ) );
+		// wp_localize_script hands numbers over as strings: with "+" the offset would be concatenated.
+		const chunk = Number( data.maxChunk );
 		let token = '';
 		let ext = '';
 		for ( let offset = 0; offset < file.size; ) {
 			const fd = new FormData();
-			fd.append( 'chunk', file.slice( offset, offset + data.maxChunk ), file.name );
+			fd.append( 'chunk', file.slice( offset, offset + chunk ), file.name );
 			fd.append( 'name', file.name );
 			fd.append( 'offset', String( offset ) );
 			fd.append( 'upload', token );
