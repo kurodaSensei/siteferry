@@ -388,6 +388,26 @@ final class RemoteFlowTest extends DbTestCase {
 		$this->assertSame( self::OLD, $this->option( $local, 'wpa_options', 'home' ), 'this site does not change' );
 	}
 
+	public function test_a_push_does_not_replace_a_paused_or_reviewing_job_on_the_remote(): void {
+		$remote = $this->site_b();
+		$server = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
+
+		foreach ( array( 'paused', 'review' ) as $status ) {
+			$this->remote_job = array(
+				'id'        => str_repeat( 'a', 16 ),
+				'status'    => $status,
+				'heartbeat' => time(),
+			);
+			try {
+				$server->handle( 'push_begin', array( 'backup' => true ) );
+				$this->fail( "A push replaced a job in \"$status\"." );
+			} catch ( \RuntimeException $e ) {
+				$this->assertStringContainsString( 'another operation in progress', $e->getMessage() );
+			}
+			$this->assertSame( $status, $this->remote_job['status'], 'the waiting job is kept' );
+		}
+	}
+
 	public function test_remote_permissions_are_required(): void {
 		$remote = $this->seeded( 'wpa_', self::OLD );
 		$local  = $this->site_b();
