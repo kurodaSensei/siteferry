@@ -21,10 +21,11 @@ Use it from **Tools → Siteferry** or from WP-CLI with `wp siteferry`.
 * **Serialized-safe search-replace.** Serialized PHP is processed as text and every string length is recalculated. Nothing is unserialized, so no objects are instantiated and unknown classes stay intact. JSON values are replaced too. Regular expressions and case-sensitive matching are optional.
 * **Export** the database to a `.sql.gz` file, with optional replacements for the destination site.
 * **Import** a dump from mysqldump, phpMyAdmin or Siteferry. The table prefix and the source URL are detected automatically.
-* **Pull and push** the database between two sites. Media, themes, plugins and mu-plugins can travel too, and only files that changed are sent.
+* **Pull and push** the database between two sites, in a guided wizard. Media, themes, plugins and mu-plugins can travel too, and only files that changed are sent.
+* **Review before transferring.** See how many files are new, changed or only on the destination, then bring them all or only the new ones.
 * **Full-site packages.** One `.sfy` file holds the database and the folders you choose, ready to import on another site.
 * **Undo.** Revert the last search-replace, import, pull or received push. The database backup and the replaced files are restored. Backups are kept for 7 days.
-* **Resumable jobs.** Work runs in short steps, so timeouts and reloads do not lose progress.
+* **Resumable jobs.** Work runs in short steps, so timeouts and reloads do not lose progress. A pull or push pauses when the other site stops answering, and you can move to other Siteferry screens while it runs.
 * **WP-CLI.** Commands: `export`, `replace`, `import`, `pull`, `push`, `undo` and `connection`.
 
 = Safety =
@@ -49,7 +50,7 @@ Siteferry only talks to sites that you connect it to yourself. To connect, you p
 3. Go to **Tools → Siteferry**.
 4. On nginx, deny direct access to the working folder with `location ~* /uploads/siteferry- { deny all; }`. On Apache, Siteferry protects it with an `.htaccess` file.
 
-To pull from or push to another site, install Siteferry on both sites. On the site you want to read from or write to, enable the permissions you need under **This site’s connection**. Then paste its connection info on the other site.
+To pull from or push to another site, install Siteferry on both sites. On the site you want to read from or write to, enable the permissions you need on the **Connection** screen. Then paste its connection info on the other site.
 
 == Frequently Asked Questions ==
 
@@ -87,9 +88,12 @@ No. The admin page uses IBM Plex Sans, bundled in `assets/fonts` under the SIL O
 
 == Screenshots ==
 
-1. Tools → Siteferry: choose an operation, the replacements and the tables.
-2. A finished export with its download link and log.
-3. This site's connection info and the permissions other sites get.
+1. Tools → Siteferry: the home screen with the operations, this site and the last operation.
+2. A pull, step 2: the route between the two sites and what to transfer.
+3. The file comparison to review before anything is transferred.
+4. A pull in progress: phases, a bar per folder and the measured speed.
+5. A finished pull: what changed, undo and the backup.
+6. This site's connection info and what other sites may do.
 
 == Changelog ==
 

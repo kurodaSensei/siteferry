@@ -13,14 +13,20 @@ Siteferry is a WordPress migration plugin. It exports, imports and runs search-r
 
 It works from **Tools → Siteferry** in the admin and from WP-CLI (`wp siteferry`). It is pure PHP 8.1 and has no runtime dependencies.
 
-![Tools → Siteferry: choose an operation, the replacements and the tables](.wordpress-org/screenshot-1.png)
+![Tools → Siteferry: the home screen with the operations, this site and the last operation](.wordpress-org/screenshot-1.png)
 
 <details>
 <summary>More screenshots</summary>
 
-![A finished export with its download and log](.wordpress-org/screenshot-2.png)
+![A pull, step 2: the route between the two sites and what to transfer](.wordpress-org/screenshot-2.png)
 
-![This site's connection info and the permissions other sites get](.wordpress-org/screenshot-3.png)
+![The file comparison to review before anything is transferred](.wordpress-org/screenshot-3.png)
+
+![A pull in progress: phases, a bar per folder and the measured speed](.wordpress-org/screenshot-4.png)
+
+![A finished pull: what changed, undo and the backup](.wordpress-org/screenshot-5.png)
+
+![This site's connection info and what other sites may do; the floating button leads back to a running pull](.wordpress-org/screenshot-6.png)
 
 </details>
 
@@ -30,9 +36,10 @@ It works from **Tools → Siteferry** in the admin and from WP-CLI (`wp siteferr
 - **Export** the database to `.sql.gz`, with or without replacements for the destination.
 - **Import** a dump from mysqldump, phpMyAdmin or Siteferry. The table prefix and the source URL are detected automatically. If a dump holds several WordPress installs, Siteferry asks which prefix to use instead of guessing. Views, triggers and procedures are skipped and reported in the log.
 - **Pull and push** the database between two sites. Files can travel too: media, themes, plugins and mu-plugins. Only files that changed are sent, and themes and plugins are swapped as whole folders at the end.
+- **Review before transferring.** A pull or push can stop after comparing the files and show how many are new, changed or only on the destination, with their size. You then bring new and changed files, or only new ones, and choose whether to delete what only the destination has.
 - **Full-site packages.** One `.sfy` file holds the database and the selected folders. You import it from the admin or with `wp siteferry import`.
 - **Undo.** The last operation that changed the site can be reverted: a search-replace, an import, a pull, or a push this site received. The pre-operation database backup is restored, and files that were replaced come back. New files are moved aside to `undone/` instead of being deleted. Backups are kept for 7 days.
-- **Resumable jobs.** Work runs in short steps, one per request, with the cursor stored on the server. A timeout, a reload or a dropped connection does not lose progress: you resume where it stopped.
+- **Resumable jobs.** Work runs in short steps, one per request, with the cursor stored on the server. A timeout, a reload or a dropped connection does not lose progress: you resume where it stopped. When the other site stops answering, a pull or push pauses instead of failing, and a clock difference between the two sites is corrected automatically.
 
 ## Requirements
 
@@ -56,7 +63,15 @@ Deactivating Siteferry removes its mu-plugin and the daily cleanup. Deleting it 
 
 ### In the admin
 
-**Tools → Siteferry** offers Export, Search and replace, Import, Pull and Push. You add search/replace pairs, choose the tables, and click **Start**. Progress, the log and download links appear on the same page. The **Undo** card shows what the last operation would restore.
+**Tools → Siteferry** opens on a home screen: pull or push, export, import and search-replace, plus this site's address and permissions and the last operation, which you can undo from there.
+
+- **Pull and push** are a four-step wizard. *Connect* takes the other site's connection info. *Choose* shows the route between the two sites and lets you pick the database, the folders, and whether to compare the files first. *Review* is the comparison, if you asked for it. *Transfer* runs it.
+- **Export, import and search-replace** are a single form each. Replacements, advanced options and the table list are folded under **Replacements and advanced options**.
+- **The progress screen** shows the phases, a bar per folder while files travel, and the transfer speed with an estimate of the time left. You can move to other Siteferry screens meanwhile: a floating button leads back to the operation. Leaving the page pauses it, and it can be resumed later.
+- **The result screen** says what changed, offers to undo it for 7 days, and links the backup or the export for download.
+- **Connection** shows this site's connection info with the key masked, and a switch for each permission other sites get.
+
+Confirmations and messages appear in the page's own dialog.
 
 ### WP-CLI
 
@@ -90,9 +105,11 @@ Run `wp help siteferry <command>` for every option: `--tables`, `--regex`, `--ca
 2. On the other site, pull or push with that URL and key:
 
    ```bash
-   wp siteferry pull https://production.example <key> --media
+   wp siteferry pull https://production.example <key> --media --only-new
    wp siteferry push https://staging.example <key> --themes --plugins --files-only
    ```
+
+   In the admin, the same info is on **Connection**, and you paste it in the *Connect* step of a pull or push.
 
 There are four separate permissions:
 
@@ -103,7 +120,7 @@ There are four separate permissions:
 | **push** | replace the database |
 | **code push** | replace themes and plugins |
 
-`--delete` removes files on the destination that no longer exist on the source. Deleted files are moved to a 7-day backup instead.
+`--delete` removes files on the destination that no longer exist on the source. Deleted files are moved to a 7-day backup instead. `--only-new` sends only files the destination does not have. If the other site stops answering, WP-CLI retries the paused job 5 times, every 30 seconds.
 
 ## How it keeps a site safe
 
@@ -113,6 +130,7 @@ There are four separate permissions:
 
 **Communication between sites is signed and replay-proof.**
 - Every request and response is signed with HMAC-SHA256 over the whole body. The body includes a timestamp (±5 minutes are tolerated) and a single-use nonce.
+- If the two clocks differ by more than that, the receiving site says so in a signed response with its own time, and the request is signed once more with that offset. The receiver still checks the time against its own clock.
 - A response carries its request's nonce, so it cannot be replayed as the answer to another request.
 - Binary file packages are covered by their signed SHA-256.
 
@@ -143,6 +161,7 @@ There are four separate permissions:
 
 - Multisite networks are not supported yet.
 - A `.sql.gz` upload is decompressed in a single request. For dumps of several GB on hosts with short request limits, upload the uncompressed `.sql`.
+- In the admin, the operation advances while the Siteferry page is open. Leaving it pauses the operation until you come back and resume. WP-CLI runs on its own.
 - Progress logs, step names and WP-CLI output are in English. The admin interface is translatable, and it ships with Spanish (`es_ES`).
 
 ## Development
@@ -187,7 +206,7 @@ src/Files/           File scanning, diffs, packages and path guards
 src/Job/             Job planner, step runner and storage
 src/Remote/          Signed client/server protocol between sites
 src/Http/            REST routes for the admin UI and for other sites
-src/Admin/, assets/  Tools → Siteferry page and its script
+src/Admin/, assets/  Tools → Siteferry page, its script and styles, and the bundled IBM Plex Sans
 src/Cli/             WP-CLI command
 mu-plugin/           Compatibility mu-plugin used during migration steps
 tests/               PHPUnit unit and integration tests
@@ -195,4 +214,4 @@ tests/               PHPUnit unit and integration tests
 
 ## License
 
-[GPL-2.0-or-later](LICENSE). Siteferry is an independent project, written from scratch, and is not affiliated with any other migration plugin.
+[GPL-2.0-or-later](LICENSE). The bundled IBM Plex Sans font is under the [SIL Open Font License 1.1](assets/fonts/OFL.txt). Siteferry is an independent project, written from scratch, and is not affiliated with any other migration plugin.

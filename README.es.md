@@ -13,16 +13,24 @@ Siteferry es un plugin de migración para WordPress. Exporta e importa la base d
 
 Se usa desde **Herramientas → Siteferry** en el admin y desde WP-CLI (`wp siteferry`). Está escrito en PHP 8.1 puro, sin dependencias en tiempo de ejecución.
 
-![Herramientas → Siteferry: elegir la operación, los reemplazos y las tablas](.wordpress-org/screenshot-1.png)
+![Herramientas → Siteferry: la pantalla de inicio con las operaciones, este sitio y la última operación](.wordpress-org/screenshot-1.png)
 
 <details>
 <summary>Más capturas</summary>
 
-![Una exportación terminada, con su descarga y el registro](.wordpress-org/screenshot-2.png)
+![Un pull, paso 2: la ruta entre los dos sitios y qué transferir](.wordpress-org/screenshot-2.png)
 
-![La información de conexión de este sitio y los permisos que reciben otros sitios](.wordpress-org/screenshot-3.png)
+![La comparación de archivos para revisar antes de transferir nada](.wordpress-org/screenshot-3.png)
+
+![Un pull en curso: fases, una barra por carpeta y la velocidad medida](.wordpress-org/screenshot-4.png)
+
+![Un pull terminado: qué cambió, deshacer y el backup](.wordpress-org/screenshot-5.png)
+
+![La información de conexión de este sitio y lo que pueden hacer otros sitios; el botón flotante vuelve a un pull en curso](.wordpress-org/screenshot-6.png)
 
 </details>
+
+Las capturas muestran la interfaz en inglés; en un WordPress en español aparece traducida.
 
 ## Funciones
 
@@ -30,9 +38,10 @@ Se usa desde **Herramientas → Siteferry** en el admin y desde WP-CLI (`wp site
 - **Exportar** la base de datos a `.sql.gz`, con o sin reemplazos para el destino.
 - **Importar** un dump de mysqldump, phpMyAdmin o Siteferry. El prefijo de tablas y la URL de origen se detectan solos. Si el dump trae varias instalaciones de WordPress, Siteferry pregunta qué prefijo usar en vez de adivinar. Las vistas, triggers y procedimientos se omiten y se avisa en el registro.
 - **Pull y push** de la base de datos entre dos sitios. También pueden viajar archivos: media, temas, plugins y mu-plugins. Solo se envían los archivos que cambiaron, y temas y plugins se cambian por carpeta completa al final.
+- **Revisar antes de transferir.** Un pull o push puede detenerse después de comparar los archivos y mostrar cuántos son nuevos, cuántos cambiaron y cuántos solo están en el destino, con su tamaño. Entonces traes los nuevos y cambiados, o solo los nuevos, y decides si borrar lo que solo tiene el destino.
 - **Paquetes de sitio completo.** Un archivo `.sfy` reúne la base de datos y las carpetas elegidas. Se importa desde el admin o con `wp siteferry import`.
 - **Deshacer.** Se puede revertir la última operación que modificó el sitio: un buscar/reemplazar, una importación, un pull o un push recibido. Vuelve el backup de la base de datos tomado antes de la operación y regresan los archivos reemplazados. Los archivos nuevos se apartan a `undone/` en vez de borrarse. Los backups se guardan 7 días.
-- **Operaciones reanudables.** El trabajo avanza en pasos cortos, uno por petición, y el cursor se guarda en el servidor. Un timeout, una recarga o una conexión caída no pierden el progreso: se continúa donde se quedó.
+- **Operaciones reanudables.** El trabajo avanza en pasos cortos, uno por petición, y el cursor se guarda en el servidor. Un timeout, una recarga o una conexión caída no pierden el progreso: se continúa donde se quedó. Si el otro sitio deja de responder, el pull o push se pausa en vez de fallar, y una diferencia de hora entre los dos sitios se corrige sola.
 
 ## Requisitos
 
@@ -56,7 +65,15 @@ Al desactivar Siteferry se quitan su mu-plugin y la limpieza diaria. Al borrarlo
 
 ### En el admin
 
-**Herramientas → Siteferry** ofrece Exportar, Buscar y reemplazar, Importar, Pull y Push. Añades los pares buscar/reemplazar, eliges las tablas y pulsas **Iniciar**. El progreso, el registro y los enlaces de descarga aparecen en la misma página. La tarjeta **Deshacer** muestra qué restauraría la última operación.
+**Herramientas → Siteferry** abre en una pantalla de inicio: pull o push, exportar, importar y buscar y reemplazar, además de la dirección y los permisos de este sitio y la última operación, que se puede deshacer desde ahí.
+
+- **Pull y push** son un asistente de cuatro pasos. *Conectar* recibe la información de conexión del otro sitio. *Elegir* muestra la ruta entre los dos sitios y deja elegir la base de datos, las carpetas y si comparar primero los archivos. *Revisar* es la comparación, si la pediste. *Transferir* la ejecuta.
+- **Exportar, importar y buscar y reemplazar** son un formulario cada uno. Los reemplazos, las opciones avanzadas y la lista de tablas están plegados en **Reemplazos y opciones avanzadas**.
+- **La pantalla de progreso** muestra las fases, una barra por carpeta mientras viajan archivos y la velocidad con una estimación del tiempo que falta. Mientras tanto puedes ir a otras pantallas de Siteferry: un botón flotante te devuelve a la operación. Si sales de la página se pausa, y se puede continuar después.
+- **La pantalla de resultado** dice qué cambió, ofrece deshacerlo durante 7 días y enlaza el backup o la exportación para descargarlos.
+- **Conexión** muestra la información de conexión de este sitio con la clave oculta, y un interruptor por cada permiso que reciben otros sitios.
+
+Las confirmaciones y los avisos aparecen en un diálogo de la propia página.
 
 ### WP-CLI
 
@@ -90,9 +107,11 @@ wp siteferry undo
 2. En el otro sitio, haz pull o push con esa URL y esa clave:
 
    ```bash
-   wp siteferry pull https://production.example <clave> --media
+   wp siteferry pull https://production.example <clave> --media --only-new
    wp siteferry push https://staging.example <clave> --themes --plugins --files-only
    ```
+
+   En el admin, la misma información está en **Conexión**, y se pega en el paso *Conectar* de un pull o push.
 
 Hay cuatro permisos separados:
 
@@ -103,7 +122,7 @@ Hay cuatro permisos separados:
 | **push** | reemplazar la base de datos |
 | **push de código** | reemplazar temas y plugins |
 
-`--delete` borra en el destino los archivos que ya no existen en el origen. Los borrados van a un backup de 7 días.
+`--delete` borra en el destino los archivos que ya no existen en el origen. Los borrados van a un backup de 7 días. `--only-new` envía solo los archivos que el destino no tiene. Si el otro sitio deja de responder, WP-CLI reintenta la operación en pausa 5 veces, cada 30 segundos.
 
 ## Cómo protege el sitio
 
@@ -113,6 +132,7 @@ Hay cuatro permisos separados:
 
 **La comunicación entre sitios va firmada y no se puede repetir.**
 - Cada petición y cada respuesta llevan una firma HMAC-SHA256 sobre el cuerpo completo. El cuerpo incluye una marca de tiempo (se toleran ±5 minutos) y un nonce de un solo uso.
+- Si los relojes difieren más que eso, el sitio que recibe lo dice en una respuesta firmada con su propia hora, y la petición se vuelve a firmar una vez con esa diferencia. El receptor sigue comprobando la hora contra su propio reloj.
 - La respuesta lleva el nonce de su petición, así que no sirve como respuesta a otra.
 - Los paquetes binarios de archivos van cubiertos por su SHA-256 firmado.
 
@@ -143,6 +163,7 @@ Hay cuatro permisos separados:
 
 - Las redes multisite todavía no están soportadas.
 - Un `.sql.gz` subido se descomprime en una sola petición. Para dumps de varios GB en hostings con límites de tiempo cortos, sube el `.sql` sin comprimir.
+- En el admin, la operación avanza mientras la página de Siteferry está abierta. Si sales, se pausa hasta que vuelvas y la continúes. WP-CLI avanza por su cuenta.
 - El registro de progreso, los nombres de los pasos y la salida de WP-CLI están en inglés. La interfaz del admin es traducible y viene en español (`es_ES`).
 
 ## Desarrollo
@@ -187,7 +208,7 @@ src/Files/           Escaneo de archivos, diferencias, paquetes y protección de
 src/Job/             Planificador, ejecutor de pasos y almacenamiento de operaciones
 src/Remote/          Protocolo cliente/servidor firmado entre sitios
 src/Http/            Rutas REST para la interfaz del admin y para otros sitios
-src/Admin/, assets/  Página Herramientas → Siteferry y su script
+src/Admin/, assets/  Página Herramientas → Siteferry, su script y estilos, y la fuente IBM Plex Sans incluida
 src/Cli/             Comando de WP-CLI
 mu-plugin/           mu-plugin de compatibilidad para los pasos de migración
 tests/               Pruebas unitarias y de integración con PHPUnit
@@ -195,4 +216,4 @@ tests/               Pruebas unitarias y de integración con PHPUnit
 
 ## Licencia
 
-[GPL-2.0-or-later](LICENSE). Siteferry es un proyecto independiente, escrito desde cero, y no está afiliado a ningún otro plugin de migración.
+[GPL-2.0-or-later](LICENSE). La fuente IBM Plex Sans incluida tiene la [SIL Open Font License 1.1](assets/fonts/OFL.txt). Siteferry es un proyecto independiente, escrito desde cero, y no está afiliado a ningún otro plugin de migración.
