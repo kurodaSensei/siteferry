@@ -870,7 +870,7 @@
 			/* translators: %s: number of tables */
 			items.push( line( __( 'Database', 'siteferry' ), sprintf( __( '%s tables', 'siteferry' ), num( job.tables ) ) ) );
 		}
-		folders.forEach( ( [ root, f ] ) => {
+		folders.filter( ( [ , f ] ) => f.sent || ( job.deletes && f.delete ) ).forEach( ( [ root, f ] ) => {
 			/* translators: %s: number of files */
 			const parts = [ sprintf( __( '%s files transferred', 'siteferry' ), num( f.sent ) ) ];
 			if ( job.deletes && f.delete ) {
