@@ -172,6 +172,17 @@ final class Runner {
 	}
 
 	/**
+	 * Whether the job is unfinished and not abandoned. A job waiting for a person (review, paused) keeps
+	 * its place for a day; one that is running is abandoned after 10 minutes without a request.
+	 *
+	 * @param array|null $job Job.
+	 */
+	public static function is_alive( ?array $job ): bool {
+		$waiting = in_array( $job['status'] ?? null, array( 'review', 'paused' ), true );
+		return self::is_unfinished( $job ) && time() - (int) $job['heartbeat'] < ( $waiting ? 86400 : 600 );
+	}
+
+	/**
 	 * Whether the job is still in progress.
 	 *
 	 * @param array|null $job Job.

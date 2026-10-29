@@ -16,9 +16,6 @@ final class JobStore {
 
 	private const OPTION = 'siteferry_job';
 
-	/** Seconds of inactivity after which an open job is considered abandoned. */
-	public const STALE = 600;
-
 	/**
 	 * Current job, or null.
 	 */
@@ -41,8 +38,7 @@ final class JobStore {
 	 * Whether there is an unfinished job that is not abandoned.
 	 */
 	public static function busy(): bool {
-		$job = self::get();
-		return Runner::is_unfinished( $job ) && time() - (int) $job['heartbeat'] < self::STALE;
+		return Runner::is_alive( self::get() );
 	}
 
 	/**

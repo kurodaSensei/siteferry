@@ -5,3 +5,4 @@
 /tests/e2e/.env.pilot
 /tests/e2e/.env.remote
 /dist/
+.DS_Store

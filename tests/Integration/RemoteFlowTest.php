@@ -534,7 +534,7 @@ final class RemoteFlowTest extends DbTestCase {
 			$this->remote_job = array(
 				'id'        => str_repeat( 'a', 16 ),
 				'status'    => $status,
-				'heartbeat' => time(),
+				'heartbeat' => time() - 3600, // Someone left the review open for an hour.
 			);
 			try {
 				$server->handle( 'push_begin', array( 'backup' => true ) );
@@ -544,6 +544,14 @@ final class RemoteFlowTest extends DbTestCase {
 			}
 			$this->assertSame( $status, $this->remote_job['status'], 'the waiting job is kept' );
 		}
+
+		$this->remote_job = array(
+			'id'        => str_repeat( 'a', 16 ),
+			'status'    => 'running',
+			'heartbeat' => time() - 3600,
+		);
+		$server->handle( 'push_begin', array( 'backup' => true ) );
+		$this->assertSame( 'receive', $this->remote_job['intent'], 'a running job with no requests for an hour was abandoned' );
 	}
 
 	public function test_remote_permissions_are_required(): void {

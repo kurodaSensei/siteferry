@@ -158,7 +158,7 @@ final class Server {
 		$this->require( 'allow_push' );
 		$current = ( $this->load )();
 		// A job waiting for a review or a resume is still unfinished: a push must not replace it (and drop its temporary tables).
-		if ( Runner::is_unfinished( $current ) && time() - (int) $current['heartbeat'] < 600 ) {
+		if ( Runner::is_alive( $current ) ) {
 			throw new \RuntimeException( 'The remote site has another operation in progress.' );
 		}
 		$job           = Planner::create( 'receive', array( 'backup' => ! empty( $args['backup'] ) ), $this->site, $this->schema );
