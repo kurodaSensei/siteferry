@@ -131,6 +131,8 @@ final class Client {
 		if ( 404 === $code ) {
 			return 'The remote site does not have Siteferry active or the URL is incorrect.';
 		}
-		return "Invalid response from the remote site (HTTP $code). Does it have Siteferry active and up to date?";
+		$seen = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( $raw ) ) );
+		return "Invalid response from the remote site (HTTP $code). Does it have Siteferry active and up to date?"
+			. ( '' === $seen ? '' : ' It answered: "' . mb_substr( $seen, 0, 200 ) . ( mb_strlen( $seen ) > 200 ? '…' : '' ) . '"' );
 	}
 }

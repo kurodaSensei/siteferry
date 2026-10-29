@@ -36,6 +36,9 @@ defined( 'ABSPATH' ) || exit;
 		if ( '' === $key || '' === $sent || ! hash_equals( hash_hmac( 'sha256', false === $line ? $body : $line, $key ), $sent ) ) {
 			return;
 		}
+		// Whatever gets printed from here on (a PHP notice with display_errors on, say) would go out before the
+		// signature header and void it: Siteferry drops this buffer before its signed response.
+		ob_start();
 	} else {
 		return;
 	}

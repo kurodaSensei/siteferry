@@ -106,6 +106,7 @@ No. The admin page uses IBM Plex Sans, bundled in `assets/fonts` under the SIL O
 * Fix: a clock difference between the two sites no longer makes a pull fail.
 * Fix: a pull no longer stops with "cookie check failed" after the tables are swapped.
 * Fix: a push no longer fails with HTTP 413 when the other site's web server limits the request size; it sends smaller requests.
+* Fix: a PHP notice on the other site no longer breaks a pull or push with "Invalid response (HTTP 200)".
 * Fix: importing files larger than one upload chunk, and pushed chunks cut off on the receiving site.
 * Fix: repeated or cut-off steps no longer duplicate rows or fail with "Duplicate entry".
 

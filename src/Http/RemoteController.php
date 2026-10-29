@@ -41,6 +41,8 @@ final class RemoteController {
 	 * @param \WP_REST_Request $request Request.
 	 */
 	public static function handle( \WP_REST_Request $request ): void {
+		ob_start(); // Anything printed while handling it would void the signature header; respond() drops it.
+		Plugin::install_compat(); // The site that receives a push may never open Siteferry's page after an update.
 		$key               = Settings::key();
 		[ $line, $binary ] = Signer::split( $request->get_body() );
 		if ( ! Signer::valid( $line, (string) $request->get_header( 'x_siteferry_signature' ), $key ) ) {
