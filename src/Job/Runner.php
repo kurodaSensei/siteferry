@@ -25,6 +25,7 @@ use Siteferry\Files\Roots;
 use Siteferry\Files\Scanner;
 use Siteferry\Files\SitePackage;
 use Siteferry\Remote\FileOps;
+use Siteferry\Remote\TooLarge;
 use Siteferry\Remote\Unreachable;
 use Siteferry\Support\Db;
 
@@ -33,6 +34,11 @@ use Siteferry\Support\Db;
  * it takes the job as an array and returns the updated job.
  */
 final class Runner {
+
+	/**
+	 * Smallest push request: below this, a server that still refuses it needs its limit raised.
+	 */
+	private const MIN_CHUNK = 64 * 1024;
 
 	/**
 	 * Database structure.
@@ -99,6 +105,17 @@ final class Runner {
 				unset( $job['remote']['key'] ); // The other site's key is not kept longer than necessary.
 				self::forget_progress( $job );
 				self::log( $job, 'Done.' );
+			}
+		} catch ( TooLarge $e ) {
+			// Refused before reaching WordPress: nothing was applied, so the same data goes again in halves.
+			$chunk = intdiv( (int) $job['remote']['chunk'], 2 );
+			if ( $chunk >= self::MIN_CHUNK ) {
+				$job['remote']['chunk'] = $chunk;
+				self::log( $job, $e->getMessage() . ' Sending ' . self::mb( $chunk ) . ' at a time from now on.' );
+			} else {
+				$job['status'] = 'paused';
+				$job['error']  = $e->getMessage() . ' Raise its upload limit (client_max_body_size on nginx) and resume.';
+				self::log( $job, 'Paused: ' . $job['error'] );
 			}
 		} catch ( Unreachable $e ) {
 			$job['status'] = 'paused';
@@ -517,7 +534,7 @@ final class Runner {
 			$this->db,
 			$this->schema,
 			$replacer,
-			$job['max_bytes'],
+			$push ? min( $job['max_bytes'], intdiv( $job['remote']['chunk'], 2 ) ) : $job['max_bytes'], // One INSERT must fit in a push request.
 			$job['options']['replace_guids'],
 			$to_file ? '' : $job['prefix_from'],
 			$to_file ? '' : $job['prefix_to'],
@@ -1221,7 +1238,7 @@ final class Runner {
 		$root = $step['root'];
 		$send = $this->file_list( $job, $root, 'send' );
 		do {
-			$built = Package::build( $send, new PathGuard( $job['site']['roots'][ $root ] ), $job['cursor'], $job['remote']['chunk'] );
+			$built = Package::build( $send, new PathGuard( $job['site']['roots'][ $root ] ), $job['cursor'], $job['remote']['chunk'], max( 100, min( 2000, intdiv( $job['remote']['chunk'], 2048 ) ) ) );
 			$got   = array(
 				'done'    => array(),
 				'partial' => array(),

@@ -13,6 +13,7 @@ use Siteferry\Engine\Schema;
 use Siteferry\Job\Planner;
 use Siteferry\Job\Runner;
 use Siteferry\Remote\Server;
+use Siteferry\Remote\TooLarge;
 use Siteferry\Remote\Unreachable;
 use Siteferry\Support\Db;
 
@@ -403,6 +404,68 @@ final class RemoteFlowTest extends DbTestCase {
 
 		$this->assert_b_has_site_a( $local );
 		$this->assertSame( $this->tree( "$this->storage/remote/uploads" ), $this->tree( "$this->storage/local/uploads" ) );
+	}
+
+	/**
+	 * Client in front of a web server that answers 413 to requests over $limit bytes, before WordPress.
+	 */
+	private function limited_client( Server $server, int $limit, int &$refused ): \Closure {
+		$real = $this->client( $server );
+		return function ( array $job, string $op, array $args, ?string $binary = null ) use ( $real, $limit, &$refused ): array {
+			if ( strlen( (string) json_encode( $args ) ) + strlen( (string) $binary ) > $limit ) {
+				++$refused;
+				throw new TooLarge( 'The web server of the remote site refused a request (HTTP 413).' );
+			}
+			return $real( $job, $op, $args, $binary );
+		};
+	}
+
+	public function test_push_shrinks_its_requests_when_the_remote_web_server_refuses_them(): void {
+		$local  = $this->seeded( 'wpa_', self::OLD );
+		$remote = $this->site_b();
+		$this->with_files( array(), 'remote' );
+		$this->with_files( array(), 'local' );
+		$this->put( 'local', 'uploads/big.bin', random_bytes( 900 * 1024 ) ); // Does not compress: it has to be split.
+		for ( $i = 0; $i < 300; $i++ ) {
+			$this->put( 'local', "uploads/small/$i.txt", "file $i" );
+		}
+
+		$server  = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
+		$refused = 0;
+		$job     = Planner::create(
+			'push',
+			$this->remote_input( $server, array( 'files' => array( 'uploads' ) ) ),
+			$this->with_files( $this->site( 'wpa_', self::OLD ), 'local' ),
+			new Schema( $local )
+		);
+		$first   = $job['remote']['chunk'];
+		$job     = $this->run_job( $local, $job, $this->limited_client( $server, 300 * 1024, $refused ) );
+
+		$this->assertGreaterThan( 0, $refused, 'the limit was hit' );
+		$this->assertLessThan( $first, $job['remote']['chunk'] );
+		$this->assertStringContainsString( 'at a time from now on', implode( "\n", $job['log'] ) );
+		$this->assert_b_has_site_a( $remote );
+		$this->assertSame( $this->tree( "$this->storage/local/uploads" ), $this->tree( "$this->storage/remote/uploads" ) );
+	}
+
+	public function test_push_pauses_when_even_the_smallest_request_is_refused(): void {
+		$local = $this->seeded( 'wpa_', self::OLD );
+		$local->query( 'CREATE TABLE wpa_big (txt longtext NOT NULL) ENGINE=InnoDB' );
+		$local->query( "INSERT INTO wpa_big VALUES ('" . bin2hex( random_bytes( 20000 ) ) . "')" ); // A row that never fits.
+		$remote  = $this->site_b();
+		$server  = $this->server( $remote, 'wpb_', self::NEW, array( 'allow_push' => true ) );
+		$refused = 0;
+		$client  = $this->limited_client( $server, 8 * 1024, $refused );
+		$job     = Planner::create( 'push', $this->remote_input( $server ), $this->site( 'wpa_', self::OLD ), new Schema( $local ) );
+		$runner  = new Runner( $local, $client );
+		for ( $i = 0; $i < 100 && Runner::is_open( $job ); $i++ ) {
+			$job = $runner->step( $job, new Budget( 0 ) );
+		}
+
+		$this->assertSame( 'paused', $job['status'] );
+		$this->assertStringContainsString( 'client_max_body_size', (string) $job['error'] );
+		$this->assertLessThan( 10, $refused, 'it gives up after a few halvings' );
+		$this->assertSame( self::NEW, $this->option( $remote, 'wpb_options', 'home' ), 'the remote did not change' );
 	}
 
 	public function test_pull_with_repeated_steps_brings_the_same_site(): void {

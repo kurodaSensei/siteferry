@@ -41,6 +41,7 @@ final class Client {
 	 * @return array Data; if the response carries a binary (files_get), it goes in 'package'.
 	 *
 	 * @throws Unreachable If the other site cannot be reached after the retries.
+	 * @throws TooLarge If the other site's web server refuses the request for its size.
 	 * @throws \RuntimeException If there is no valid response.
 	 */
 	public function call( string $op, array $args = array(), ?string $binary = null ): array {
@@ -71,6 +72,10 @@ final class Client {
 			}
 			$code = (int) wp_remote_retrieve_response_code( $response );
 			$raw  = (string) wp_remote_retrieve_body( $response );
+			if ( 413 === $code ) {
+				$size = strlen( $message ) + ( null === $binary ? 0 : strlen( $binary ) + 1 );
+				throw new TooLarge( sprintf( 'The web server of the remote site refused a request of %.1f MB (HTTP 413).', $size / 1048576 ) );
+			}
 			if ( $code >= 500 ) {
 				if ( $attempt < $attempts ) {
 					sleep( 2 * $attempt );

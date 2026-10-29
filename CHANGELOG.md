@@ -27,6 +27,7 @@ All notable changes to Siteferry. The format follows [Keep a Changelog](https://
 
 - When the two sites' clocks differ by more than 5 minutes (for example after the computer slept), the request is signed again once with the other site's time instead of failing.
 - A pull now finishes in the request that swaps the tables, so the folder swaps no longer fail with "cookie check failed" once this site's users are replaced. A lost session gets a notice that says to log in again and resume.
+- A push to a site whose web server limits the request size (HTTP 413, such as nginx's `client_max_body_size`) sends smaller requests instead of failing. If even the smallest is refused, it pauses and says which limit to raise.
 - An incoming push no longer replaces a paused job or one waiting for its review on the receiving site.
 - A pushed chunk cut off on the receiving site after part of it was applied is completed instead of applied twice.
 - Importing a file larger than one upload chunk failed on the second chunk.
