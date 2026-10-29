@@ -5,6 +5,9 @@
  * @package Siteferry
  */
 
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Messages are plain text for the job log, WP-CLI and REST JSON; the admin shows them with textContent.
+// phpcs:disable WordPress.WP.AlternativeFunctions -- Streams files of any size in chunks: WP_Filesystem has no streaming API, and this code also runs without WordPress (tests, WP-CLI packages).
+
 namespace Siteferry\Files;
 
 /**

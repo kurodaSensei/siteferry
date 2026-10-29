@@ -52,7 +52,7 @@ final class JobStore {
 	 */
 	public static function lock( int $wait = 0 ): bool {
 		global $wpdb;
-		return '1' === (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $wpdb->prefix . 'siteferry_step', $wait ) );
+		return '1' === (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $wpdb->prefix . 'siteferry_step', $wait ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- A MySQL lock: there is nothing to cache.
 	}
 
 	/**
@@ -60,6 +60,6 @@ final class JobStore {
 	 */
 	public static function unlock(): void {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $wpdb->prefix . 'siteferry_step' ) );
+		$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $wpdb->prefix . 'siteferry_step' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Releases the lock above.
 	}
 }

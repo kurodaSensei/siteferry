@@ -5,6 +5,8 @@
  * @package Siteferry
  */
 
+// phpcs:disable WordPress.WP.AlternativeFunctions -- Streams files of any size in chunks: WP_Filesystem has no streaming API, and this code also runs without WordPress (tests, WP-CLI packages).
+
 namespace Siteferry\Http;
 
 use Siteferry\Engine\Schema;

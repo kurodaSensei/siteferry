@@ -5,6 +5,8 @@
  * @package Siteferry
  */
 
+// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Messages are plain text for the job log, WP-CLI and REST JSON; the admin shows them with textContent.
+
 namespace Siteferry\Remote;
 
 use Siteferry\Engine\Budget;

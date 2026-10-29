@@ -37,7 +37,7 @@ final class Plugin {
 	 */
 	public static function boot(): void {
 		// Bundled translations; translate.wordpress.org files in wp-content/languages take precedence.
-		add_action( 'init', static fn() => load_plugin_textdomain( 'siteferry', false, dirname( plugin_basename( SITEFERRY_FILE ) ) . '/languages' ) );
+		add_action( 'init', static fn() => load_plugin_textdomain( 'siteferry', false, dirname( plugin_basename( SITEFERRY_FILE ) ) . '/languages' ) ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- The translations ship in /languages, which just-in-time loading does not read.
 		add_action( 'rest_api_init', array( RestController::class, 'register' ) );
 		add_action( 'rest_api_init', array( RemoteController::class, 'register' ) );
 		add_action( 'admin_menu', array( Page::class, 'register' ) );
@@ -76,7 +76,7 @@ final class Plugin {
 		foreach ( ( new Schema( $db ) )->temp_tables() as $table ) {
 			$db->query( 'DROP TABLE IF EXISTS ' . Db::ident( $table ) );
 		}
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'siteferry_' ) . '%' ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'siteferry_' ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Uninstall: every option of the plugin at once, then the whole cache is flushed.
 		wp_cache_flush();
 	}
 
@@ -152,14 +152,14 @@ final class Plugin {
 	 */
 	public static function create_job( string $intent, array $input ): array {
 		if ( JobStore::busy() ) {
-			throw new \RuntimeException( __( 'Another operation is already in progress.', 'siteferry' ) );
+			throw new \RuntimeException( esc_html__( 'Another operation is already in progress.', 'siteferry' ) );
 		}
 		if ( 'receive' === $intent ) {
-			throw new \InvalidArgumentException( __( 'Unknown action.', 'siteferry' ) );
+			throw new \InvalidArgumentException( esc_html__( 'Unknown action.', 'siteferry' ) );
 		}
 		if ( 'undo' === $intent ) {
 			// Only the stored point: never paths that arrive in the request.
-			$input = UndoPoint::get() ?? throw new \InvalidArgumentException( __( 'There is nothing to undo.', 'siteferry' ) );
+			$input = UndoPoint::get() ?? throw new \InvalidArgumentException( esc_html__( 'There is nothing to undo.', 'siteferry' ) );
 		}
 		if ( 'pull' === $intent || 'push' === $intent ) {
 			$input['remote']      = Signer::parse_connection( (string) ( $input['connection'] ?? '' ) ) + array( 'verify_ssl' => Settings::get()['verify_ssl'] );
@@ -182,7 +182,7 @@ final class Plugin {
 		$info = ( new Client( $remote['url'], $remote['key'], $remote['verify_ssl'] ) )->call( 'hello' );
 		if ( Server::PROTOCOL !== (int) ( $info['protocol'] ?? 0 ) ) {
 			/* translators: %s: Siteferry version on the remote site */
-			throw new \RuntimeException( sprintf( __( 'The remote site runs a different Siteferry version (%s). Update both.', 'siteferry' ), $info['version'] ?? '?' ) );
+			throw new \RuntimeException( esc_html( sprintf( __( 'The remote site runs a different Siteferry version (%s). Update both.', 'siteferry' ), $info['version'] ?? '?' ) ) );
 		}
 		return $info;
 	}

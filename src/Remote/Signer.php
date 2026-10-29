@@ -108,7 +108,7 @@ final class Signer {
 			throw new \InvalidArgumentException( 'The connection info must be the site URL and its key, exactly as shown in Siteferry on the other site.' );
 		}
 		// Over http the database would travel in clear text: only allowed towards development hosts.
-		if ( ! preg_match( '#^https://#i', $url ) && ! self::is_dev_host( (string) parse_url( $url, PHP_URL_HOST ) ) ) {
+		if ( ! preg_match( '#^https://#i', $url ) && ! self::is_dev_host( (string) parse_url( $url, PHP_URL_HOST ) ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- Runs without WordPress too (tests).
 			throw new \InvalidArgumentException( 'Use https: over http the database would travel unencrypted. http is only allowed with development hosts (localhost, .test, .local, private IPs).' );
 		}
 		return array(
