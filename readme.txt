@@ -98,6 +98,7 @@ No. The admin page uses IBM Plex Sans, bundled in `assets/fonts` under the SIL O
 == Changelog ==
 
 = 0.6.0 =
+* First public release.
 * New: redesigned admin screens, with a pull/push wizard, a review of the file comparison, a progress screen you can leave while it runs, and a result screen with undo and the backup.
 * New: bring only new files, and review the comparison before anything is transferred.
 * New: a pull or push pauses when the other site stops answering and resumes from where it stopped.
@@ -111,4 +112,4 @@ No. The admin page uses IBM Plex Sans, bundled in `assets/fonts` under the SIL O
 * Fix: repeated or cut-off steps no longer duplicate rows or fail with "Duplicate entry".
 
 = 0.4.0 =
-* First public release.
+* First version. It was not published.

@@ -2,7 +2,9 @@
 
 All notable changes to Siteferry. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/).
 
-## [0.6.0] - 2026-10-28
+## [0.6.0] - 2026-11-01
+
+First public release.
 
 ### Added
 
@@ -37,4 +39,4 @@ All notable changes to Siteferry. The format follows [Keep a Changelog](https://
 
 ## [0.4.0] - 2026-10-27
 
-- First public release.
+- First version. It was not published.
